@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+rm -rf /etc/update-motd.d/99-one-click
+
 wget -O .vimrc https://gist.githubusercontent.com/jwindelborg/03a59a13495ccf2351118c691a81e035/raw/58be01c2f62b8fd49fb123df5d85b1b7dc6a9454/.vimrc
 vim
 
