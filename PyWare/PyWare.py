@@ -6,6 +6,8 @@ import subprocess
 import re
 
 pattern = re.compile("(var )(([a-zA-Z])([a-zA-Z0-9$_])*)( = \")(([a-zA-Z0-9$_/:%.?=&()\-\,])*)(\")")
+math_pattern = re.compile("([%*/+-]? *[0-9]+( *[%*/+-] *[0-9]+)+)+")
+
 
 def arg_parser():
     parser = argparse.ArgumentParser(description="Analyze javascript")
@@ -34,6 +36,14 @@ def open_and_pretty(filename):
         javascript = bla.sub(insert_val, javascript)
         javascript = javascript.replace('" + "', '')
         javascript = javascript.replace('" +  "', '')
+
+    for math_expr in re.finditer(math_pattern, javascript):
+        try:
+            bla_bla = eval(str(math_expr[0]))
+            javascript = javascript.replace(math_expr[0], str(bla_bla))
+        except:
+            javascript = javascript.replace(math_expr[0], "/* PYWARE ALERT: Debug OBSTRUCTION */" + math_expr[0])
+            continue
 
     javascript = javascript[2:-1]
     print(javascript)
