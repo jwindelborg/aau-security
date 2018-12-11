@@ -2,6 +2,7 @@
 
 import PyChromeDevTools
 import time
+import mysql.connector
 
 
 def do_page(page):
@@ -18,6 +19,13 @@ def do_page(page):
 
     responses = []
 
+    db = mysql.connector.connect(
+                    host="ssh.windelborg.info", 
+                    user="aau", 
+                    passwd="2387AXumK52aeaSA", 
+                    database="aau")
+    cursor = db.cursor()
+
     while 1==1:
         if(time.time() >= endtime):
             break
@@ -26,10 +34,14 @@ def do_page(page):
         tupl = (letime,response)
         responses.append(tupl)
 
+    sql = "INSERT INTO Responses (response_time, message) VALUES (%s, %s)"
+    cursor.executemany(sql,responses)
+    db.commit()
+    db.close()
+
     with open(page, "w") as f:
         for item in responses:
             f.write("%s\n" % str(item))
-
 
 with open("top100") as file:
     for line in file:
@@ -37,3 +49,4 @@ with open("top100") as file:
             do_page(line.strip())
         except:
             continue
+
