@@ -18,6 +18,18 @@ def do_page(page):
     tab.call_method("Page.navigate", url="http://" + page, _timeout=5)
     tab.wait(2)
     data = tab.Page.captureScreenshot()
+
+    db = mysql.connector.connect(
+                    host="ssh.windelborg.info", 
+                    user="aau", 
+                    passwd="2387AXumK52aeaSA", 
+                    database="aau")
+    cursor = db.cursor()
+    sql = "INSERT INTO Screenshot (domain, screenshot_data) VALUES (page, data)"
+    cursor.execute(sql)
+    db.commit()
+    db.close()
+
     with open("%s.png" % page, "wb") as fd:
         fd.write(base64.b64decode(data['data']))
 
