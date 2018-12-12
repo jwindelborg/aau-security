@@ -3,7 +3,8 @@
 import PyChromeDevTools
 import time
 import mysql.connector
-
+import pychrome
+import base64
 
 def do_page(page):
     starttime = time.time()
@@ -17,6 +18,7 @@ def do_page(page):
     chrome.Page.navigate(url="http://" + page)
     chrome.wait_event("Page.frameStoppedLoading", timeout=60)
 
+    data = chrome.Page.captureScreenshot()
     responses = []
 
     db = mysql.connector.connect(
