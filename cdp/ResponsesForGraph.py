@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import PyChromeDevTools
+import pychrome
 import time
 import mysql.connector
 import pychrome
