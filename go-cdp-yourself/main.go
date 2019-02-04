@@ -1,9 +1,14 @@
 package main
 
+// Before use
+// docker run -d -p 9222:9222 --rm --name headless-shell chromedp/headless-shell
+//
+
 import (
 	"context"
 	"database/sql"
 	"debug/dwarf"
+	"github.com/chromedp/cdproto/security"
 	"github.com/chromedp/chromedp"
 	"github.com/chromedp/chromedp/runner"
 	_ "github.com/go-sql-driver/mysql"
@@ -30,9 +35,14 @@ func main() {
 	defer cancel()
 
 	// create chrome instance
-	c, err := chromedp.New(ctxt, chromedp.WithRunnerOptions(
-		runner.ProxyServer("http://127.0.0.1:8080"),
-		))
+	c, err := chromedp.New(ctxt,
+		chromedp.WithRunnerOptions(
+			runner.ProxyServer("http://127.0.0.1:8080"),
+		),
+		//chromedp.WithTargets(client.New().WatchPageTargets(ctxt)), // Use this if chrome is already laynched as  docker
+		chromedp.WithLog(log.Printf),
+	)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -61,6 +71,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain string) dw
 	var title string
 
 	tasks = append(tasks, chromedp.Tasks{
+		security.SetIgnoreCertificateErrors(true),
 		chromedp.Navigate(domain),
 		chromedp.Sleep(10*time.Second),
 		chromedp.Stop(),
