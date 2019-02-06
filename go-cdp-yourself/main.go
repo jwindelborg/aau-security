@@ -10,7 +10,7 @@ import (
 	"debug/dwarf"
 	"github.com/chromedp/cdproto/security"
 	"github.com/chromedp/chromedp"
-	"github.com/chromedp/chromedp/runner"
+	"github.com/chromedp/chromedp/client"
 	_ "github.com/go-sql-driver/mysql"
 	"io/ioutil"
 	_ "io/ioutil"
@@ -37,9 +37,9 @@ func main() {
 	// create chrome instance
 	c, err := chromedp.New(ctxt,
 		chromedp.WithRunnerOptions(
-			runner.ProxyServer("http://127.0.0.1:8080"),
+			//runner.ProxyServer("http://127.0.0.1:8080"),
 		),
-		//chromedp.WithTargets(client.New().WatchPageTargets(ctxt)), // Use this if chrome is already laynched as  docker
+		chromedp.WithTargets(client.New().WatchPageTargets(ctxt)), // Use this if chrome is already laynched as  docker
 		chromedp.WithLog(log.Printf),
 	)
 
