@@ -46,7 +46,7 @@ func main() {
 			runner.Flag("headless", true),    // enable for server, disable for local debug
 			runner.Flag("no-sandbox", true),
 		),
-		//chromedp.WithLog(log.Printf), // Verbose output
+		chromedp.WithLog(log.Printf), // Verbose output
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -72,6 +72,8 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dw
 	var tasks chromedp.Tasks
 	var title string
 	var resJSbase64 string
+
+	log.Printf("Doing domain: " + domain.domain)
 
 	// TODO: Find a way to access DevTools network tab
 	tasks = append(tasks, chromedp.Tasks{
@@ -126,11 +128,14 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dw
 			scriptURL := findScriptRegex.FindStringSubmatch(element)[3]
 			scriptURL = prepareScriptURL(domain.domain, scriptURL)
 
-			response, _ := http.Get(scriptURL)
+			response, err := http.Get(scriptURL)
+			if err != nil {
+				log.Printf("Error getting http request for js file")
+			}
 			if response.StatusCode >= 200 && response.StatusCode < 400 {
 				body, err := ioutil.ReadAll(response.Body)
 				if err != nil {
-					log.Fatal(err)
+					log.Printf("Error reading body for js file")
 				} else {
 					defer response.Body.Close()
 				}
