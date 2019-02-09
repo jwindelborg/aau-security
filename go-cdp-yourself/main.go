@@ -95,7 +95,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dw
 									// btoa(unescape(encodeURIComponent(script.join('::,,//')))));
 	})
 	// Consider setting a flag between sites for mitmproxy
-	// navigate(Domain.id + ".arpa") or similar
+	//   navigate(Domain.id + ".arpa") or similar
 
 	err = c.Run(ctxt, chromedp.Tasks{tasks})
 	if err != nil {
@@ -114,6 +114,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dw
 	}
 	scripts := strings.Split(string(resJSbase64Decoded),"::,,//")
 
+	// TODO: Refactor for loop: Simplify logic
 	for _, element := range scripts {
 		findScriptRegex := regexp.MustCompile(`<script\s+[^>]*?src=(("|')([^"']+))`)
 
@@ -131,19 +132,25 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dw
 			response, err := http.Get(scriptURL)
 			if err != nil {
 				log.Printf("Error getting http request for js file")
-			}
-			if response.StatusCode >= 200 && response.StatusCode < 400 {
-				body, err := ioutil.ReadAll(response.Body)
-				if err != nil {
-					log.Printf("Error reading body for js file")
-				} else {
-					defer response.Body.Close()
-				}
-				element = string(body)
 			} else {
-				element = string(response.StatusCode)
+				if response.StatusCode >= 200 && response.StatusCode < 400 {
+					body, err := ioutil.ReadAll(response.Body)
+					if err != nil {
+						log.Printf("Error reading body for js file")
+					} else {
+						defer response.Body.Close()
+					}
+					element = string(body)
+				} else {
+					element = string(response.StatusCode)
+				}
 			}
-
+			shabytes := sha3.Sum256([]byte(element))
+			sha := hex.EncodeToString(shabytes[:])
+			sqlJavaScriptInsert := `INSERT INTO javascript (script, javascript_checksum) VALUES (?, ?);`
+			_, err = db.Exec(sqlJavaScriptInsert, element, sha)
+			sqlJavaScriptRelationInsert := `INSERT INTO javascriptdomain (javascript_checksum, domain_id) VALUES (?, ?);`
+			_, err = db.Exec(sqlJavaScriptRelationInsert, sha, domain.id)
 		}
 	}
 
