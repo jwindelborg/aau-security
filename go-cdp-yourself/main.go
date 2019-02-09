@@ -131,7 +131,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dw
 
 			response, err := http.Get(scriptURL)
 			if err != nil {
-				log.Printf("Error getting http request for js file")
+				log.Printf("Error getting http request for js file: " + scriptURL)
 			} else {
 				if response.StatusCode >= 200 && response.StatusCode < 400 {
 					body, err := ioutil.ReadAll(response.Body)
