@@ -99,18 +99,20 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dw
 
 	err = c.Run(ctxt, chromedp.Tasks{tasks})
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Could not process domain: " + domain.domain)
+		return dwarf.VoidType{}
 	}
 
 	sqlStmt := `UPDATE domains SET title = ? WHERE domain_id = ?;`
 	_, err = db.Exec(sqlStmt, title, domain.id)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Error: Could not set title for: " + domain.domain)
 	}
 
 	resJSbase64Decoded, err := base64.StdEncoding.DecodeString(resJSbase64)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Could not decode javascript for: " + domain.domain)
+		return dwarf.VoidType{}
 	}
 	scripts := strings.Split(string(resJSbase64Decoded),"::,,//")
 
@@ -137,6 +139,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dw
 					body, err := ioutil.ReadAll(response.Body)
 					if err != nil {
 						log.Printf("Error reading body for js file")
+						return dwarf.VoidType{}
 					} else {
 						defer response.Body.Close()
 					}
@@ -149,8 +152,16 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dw
 			sha := hex.EncodeToString(shabytes[:])
 			sqlJavaScriptInsert := `INSERT INTO javascript (script, javascript_checksum) VALUES (?, ?);`
 			_, err = db.Exec(sqlJavaScriptInsert, element, sha)
+			if err != nil {
+				log.Printf("Could not insert javascript to database for: " + domain.domain)
+				return dwarf.VoidType{}
+			}
 			sqlJavaScriptRelationInsert := `INSERT INTO javascriptdomain (javascript_checksum, domain_id) VALUES (?, ?);`
 			_, err = db.Exec(sqlJavaScriptRelationInsert, sha, domain.id)
+			if err != nil {
+				log.Printf("Could not insert javascript to database for: " + domain.domain)
+				return dwarf.VoidType{}
+			}
 		}
 	}
 
