@@ -53,7 +53,9 @@ func main() {
 	}
 
 	for i := 0; i < len(domains) - 1; i++ {
-		doDomain(ctxt, c, *db, domains[i])
+		ctxDomain, cancelDomain := context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancelDomain()
+		doDomain(ctxDomain, c, *db, domains[i])
 	}
 
 	err = c.Shutdown(ctxt)
@@ -93,6 +95,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dw
 									//   script[i] = (script.Obj.outerHTML.ToString());
 									// }
 									// btoa(unescape(encodeURIComponent(script.join('::,,//')))));
+
 	})
 	// Consider setting a flag between sites for mitmproxy
 	//   navigate(Domain.id + ".arpa") or similar
