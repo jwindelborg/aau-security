@@ -33,17 +33,12 @@ func main() {
 	ctxt, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	domains := loadDomainsDB(ctxt, *db)
+	domains := loadDomainsDB(ctxt)
 
 	c, err := chromedp.New(ctxt,
 		chromedp.WithRunnerOptions(
-			runner.ProxyServer("http://127.0.0.1:8080"), // enable for mitmproxy or Burp
-			runner.Flag("headless", true),    // enable for server, disable for local debug
+			//runner.ProxyServer("http://127.0.0.1:8080"), // enable for mitmproxy or Burp
+			runner.Flag("headless", false),    // enable for server, disable for local debug
 			runner.Flag("no-sandbox", true),
 		),
 		chromedp.WithLog(log.Printf), // Verbose output
@@ -54,8 +49,8 @@ func main() {
 
 	for i := 0; i < len(domains) - 1; i++ {
 		ctxDomain, cancelDomain := context.WithTimeout(context.Background(), 100*time.Second)
-		defer cancelDomain()
-		doDomain(ctxDomain, c, *db, domains[i])
+		doDomain(ctxDomain, c, domains[i])
+		cancelDomain() // https://stackoverflow.com/questions/45617758/defer-in-the-loop-what-will-be-better
 	}
 
 	err = c.Shutdown(ctxt)
@@ -69,13 +64,18 @@ func main() {
 	}
 }
 
-func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dwarf.VoidType {
+func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidType {
 	var err error
 	var tasks chromedp.Tasks
 	var title string
 	var resJSbase64 string
 
 	log.Printf("Doing domain: " + domain.domain)
+
+	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// TODO: Find a way to access DevTools network tab
 	tasks = append(tasks, chromedp.Tasks{
@@ -168,10 +168,19 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, db sql.DB, domain Domain) dw
 		}
 	}
 
+	err = db.Close()
+	if err != nil {
+		log.Fatal("Db conn could not be closed")
+	}
 	return dwarf.VoidType{}
 }
 
-func loadDomainsDB(ctxt context.Context, db sql.DB) []Domain {
+func loadDomainsDB(ctxt context.Context) []Domain {
+	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	rows, err := db.QueryContext(ctxt, "SELECT domain_id, domain FROM domains")
 	if err != nil {
 		log.Fatal(err)
@@ -195,6 +204,10 @@ func loadDomainsDB(ctxt context.Context, db sql.DB) []Domain {
 		domains = append(domains, tmpDom)
 	}
 
+	err = db.Close()
+	if err != nil {
+		log.Fatal("Could not close DB conn")
+	}
 	return domains
 }
 
