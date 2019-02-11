@@ -37,8 +37,8 @@ func main() {
 
 	c, err := chromedp.New(ctxt,
 		chromedp.WithRunnerOptions(
-			//runner.ProxyServer("http://127.0.0.1:8080"), // enable for mitmproxy or Burp
-			runner.Flag("headless", false),    // enable for server, disable for local debug
+			runner.ProxyServer("http://127.0.0.1:8080"), // enable for mitmproxy or Burp
+			runner.Flag("headless", true),    // enable for server, disable for local debug
 			runner.Flag("no-sandbox", true),
 		),
 		chromedp.WithLog(log.Printf), // Verbose output
@@ -73,6 +73,8 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 	log.Printf("Doing domain: " + domain.domain)
 
 	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
+	db.SetMaxIdleConns(15)
+	db.SetConnMaxLifetime(66)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -177,11 +179,13 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 
 func loadDomainsDB(ctxt context.Context) []Domain {
 	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
+	db.SetMaxIdleConns(15)
+	db.SetConnMaxLifetime(66)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	rows, err := db.QueryContext(ctxt, "SELECT domain_id, domain FROM domains")
+	rows, err := db.QueryContext(ctxt, "SELECT domain_id, domain FROM domains ORDER BY RAND()")
 	if err != nil {
 		log.Fatal(err)
 	}
