@@ -73,6 +73,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 	log.Printf("Doing domain: " + domain.domain)
 
 	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
+	db.SetMaxIdleConns(15)
 	if err != nil {
 		log.Fatal(err)
 	}
