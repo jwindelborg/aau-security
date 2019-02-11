@@ -152,8 +152,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 		sqlInsertCookie := `INSERT INTO cookie (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only) VALUES (?, ?, ?, ?, ?, ?, ?);`
 		_, err = db.Exec(sqlInsertCookie, domain.id, element.name, element.value, element.domain, element.expires, element.secure, element.httponly)
 		if err != nil {
-			log.Printf("Shit, cookie sql dead")
-			log.Fatal(err)
+			log.Printf("Cookie already excists")
 		}
 	}
 
