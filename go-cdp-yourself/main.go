@@ -6,6 +6,8 @@ import (
 	"debug/dwarf"
 	"encoding/base64"
 	"encoding/hex"
+	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/profiler"
 	"github.com/chromedp/cdproto/security"
 	"github.com/chromedp/chromedp"
@@ -25,6 +27,15 @@ import (
 type Domain struct {
 	domain string
 	id int
+}
+
+type DomainCookie struct {
+	name string
+	domain string
+	value string
+	expires float64
+	httponly int
+	secure int
 }
 
 func main() {
@@ -69,15 +80,17 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 	var tasks chromedp.Tasks
 	var title string
 	var resJSbase64 string
+	var cookies []DomainCookie
 
 	log.Printf("Doing domain: " + domain.domain)
 
 	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
 	db.SetMaxIdleConns(15)
-	db.SetConnMaxLifetime(66)
+	db.SetConnMaxLifetime(66 * time.Second)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 
 	// TODO: Find a way to access DevTools network tab
 	tasks = append(tasks, chromedp.Tasks{
@@ -91,16 +104,30 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 		chromedp.Stop(),
 		chromedp.Title(&title),
 		chromedp.EvaluateAsDevTools("var scri = []; for (var index = 0; index < document.getElementsByTagName('script').length; index++) { scri[index] = (document.getElementsByTagName('script')[index].outerHTML.toString()); }; btoa(unescape(encodeURIComponent(scri.join('::,,//'))));", &resJSbase64),
-									// var script = []
-									// var scriptObj = document.getElementByTagName('script')
-									// for (var index = 0; index < scriptObj; index++) {
-									//   script[i] = (script.Obj.outerHTML.ToString());
-									// }
-									// btoa(unescape(encodeURIComponent(script.join('::,,//')))));
 
+		chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
+			cookiesObj, err := network.GetAllCookies().Do(ctxt, h)
+			if err != nil {
+				return err
+			}
+
+			for _, cookie := range cookiesObj {
+				tmpCookie := DomainCookie{
+					name:cookie.Name,
+					domain:cookie.Domain,
+					expires:cookie.Expires,
+					httponly:boolToInt(cookie.HTTPOnly),
+					secure:boolToInt(cookie.Secure),
+					value:cookie.Value,
+
+				}
+				cookies = append(cookies, tmpCookie)
+			}
+
+			return nil
+		}),
 	})
 	// Consider setting a flag between sites for mitmproxy
-	//   navigate(Domain.id + ".arpa") or similar
 
 	err = c.Run(ctxt, chromedp.Tasks{tasks})
 	if err != nil {
@@ -120,6 +147,15 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 		return dwarf.VoidType{}
 	}
 	scripts := strings.Split(string(resJSbase64Decoded),"::,,//")
+
+	for _, element := range cookies {
+		sqlInsertCookie := `INSERT INTO cookie (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only) VALUES (?, ?, ?, ?, ?, ?, ?);`
+		_, err = db.Exec(sqlInsertCookie, domain.id, element.name, element.value, element.domain, element.expires, element.secure, element.httponly)
+		if err != nil {
+			log.Printf("Shit, cookie sql dead")
+			log.Fatal(err)
+		}
+	}
 
 	// TODO: Refactor for loop: Simplify logic
 	for _, element := range scripts {
@@ -179,8 +215,8 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 
 func loadDomainsDB(ctxt context.Context) []Domain {
 	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
-	db.SetMaxIdleConns(15)
-	db.SetConnMaxLifetime(66)
+	db.SetMaxIdleConns(15) // TODO: This might not have any effect
+	db.SetConnMaxLifetime(66 * time.Second) // TODO: This works, but why
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -237,4 +273,13 @@ func loadDomains(filename string) []string  {
 	}
 	lines := strings.Split(string(content), "\n")
 	return lines
+}
+
+func boolToInt(bo bool) int {
+	if bo {
+		return 1
+	} else {
+		return 0
+	}
+
 }
