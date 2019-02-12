@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"debug/dwarf"
-	"encoding/base64"
 	"encoding/hex"
+	"github.com/anaskhan96/soup"
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/profiler"
@@ -19,7 +19,6 @@ import (
 	_ "io/ioutil"
 	"log"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -79,8 +78,8 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 	var err error
 	var tasks chromedp.Tasks
 	var title string
-	var resJSbase64 string
 	var cookies []DomainCookie
+	var html string
 
 	log.Printf("Doing domain: " + domain.domain)
 
@@ -94,6 +93,8 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 
 	// TODO: Find a way to access DevTools network tab
 	tasks = append(tasks, chromedp.Tasks{
+		network.ClearBrowserCookies(),
+		network.ClearBrowserCache(),
 		security.SetIgnoreCertificateErrors(true), // if intercept with burp or mitmproxy certificate is not signed
 		// TODO: Find a way to access profiler data, it gives specific knowledge about run JavaScript
 		profiler.Enable(),
@@ -103,7 +104,8 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 		chromedp.Sleep(10*time.Second),
 		chromedp.Stop(),
 		chromedp.Title(&title),
-		chromedp.EvaluateAsDevTools("var scri = []; for (var index = 0; index < document.getElementsByTagName('script').length; index++) { scri[index] = (document.getElementsByTagName('script')[index].outerHTML.toString()); }; btoa(unescape(encodeURIComponent(scri.join('::,,//'))));", &resJSbase64),
+		chromedp.EvaluateAsDevTools("document.documentElement.outerHTML.toString()", &html),
+
 
 		chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
 			cookiesObj, err := network.GetAllCookies().Do(ctxt, h)
@@ -127,6 +129,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 			return nil
 		}),
 	})
+
 	// Consider setting a flag between sites for mitmproxy
 
 	err = c.Run(ctxt, chromedp.Tasks{tasks})
@@ -141,13 +144,6 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 		log.Printf("Error: Could not set title for: " + domain.domain)
 	}
 
-	resJSbase64Decoded, err := base64.StdEncoding.DecodeString(resJSbase64)
-	if err != nil {
-		log.Printf("Could not decode javascript for: " + domain.domain)
-		return dwarf.VoidType{}
-	}
-	scripts := strings.Split(string(resJSbase64Decoded),"::,,//")
-
 	for _, element := range cookies {
 		sqlInsertCookie := `INSERT INTO cookie (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only) VALUES (?, ?, ?, ?, ?, ?, ?);`
 		_, err = db.Exec(sqlInsertCookie, domain.id, element.name, element.value, element.domain, element.expires, element.secure, element.httponly)
@@ -156,51 +152,51 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 		}
 	}
 
-	// TODO: Refactor for loop: Simplify logic
-	for _, element := range scripts {
-		findScriptRegex := regexp.MustCompile(`<script\s+[^>]*?src=(("|')([^"']+))`)
-
-		if !findScriptRegex.MatchString(element) {
-			shabytes := sha3.Sum256([]byte(element))
-			sha := hex.EncodeToString(shabytes[:])
-			sqlJavaScriptInsert := `INSERT INTO javascript (script, javascript_checksum) VALUES (?, ?);`
-			_, err = db.Exec(sqlJavaScriptInsert, element, sha)
-			sqlJavaScriptRelationInsert := `INSERT INTO javascriptdomain (javascript_checksum, domain_id) VALUES (?, ?);`
-			_, err = db.Exec(sqlJavaScriptRelationInsert, sha, domain.id)
-		} else {
-			scriptURL := findScriptRegex.FindStringSubmatch(element)[3]
-			scriptURL = prepareScriptURL(domain.domain, scriptURL)
-
+	htmldom := soup.HTMLParse(html)
+	javascripts := htmldom.FindAll("script")
+	for _, js := range javascripts {
+		if js.Attrs()["src"] != "" {
+			scriptURL := prepareScriptURL(domain.domain, js.Attrs()["src"])
 			response, err := http.Get(scriptURL)
 			if err != nil {
-				log.Printf("Error getting http request for js file: " + scriptURL)
-			} else {
-				if response.StatusCode >= 200 && response.StatusCode < 400 {
-					body, err := ioutil.ReadAll(response.Body)
-					if err != nil {
-						log.Printf("Error reading body for js file")
-						return dwarf.VoidType{}
-					} else {
-						defer response.Body.Close()
-					}
-					element = string(body)
+				log.Printf("Could not fetch script: " + scriptURL)
+			}
+			if response.StatusCode >= 200 && response.StatusCode < 400 {
+				body, err := ioutil.ReadAll(response.Body)
+				if err != nil {
+					log.Printf("Could not fetch body for: " + scriptURL)
 				} else {
-					element = string(response.StatusCode)
+					err := response.Body.Close()
+					if err != nil {
+						log.Printf("There was an error closing body for: " + scriptURL)
+					}
+					sqlJs := `INSERT INTO javascript (script, url) VALUES (?, ?);`
+					_, err = db.Exec(sqlJs, string(body), scriptURL)
+					if err != nil {
+						log.Printf("10 Error inserting JS into DB for: " + scriptURL)
+					}
+					sqlJsRel := `INSERT INTO javascriptdomain (domain_id, url, is_external) VALUES (?, ?, ?);`
+					_, err = db.Exec(sqlJsRel, domain.id, scriptURL, 1)
+					if err != nil {
+						log.Printf("20 Could not insert JS into DB for: " + scriptURL)
+					}
 				}
+
 			}
-			shabytes := sha3.Sum256([]byte(element))
+		} else {
+			shabytes := sha3.Sum256([]byte(js.Text()))
 			sha := hex.EncodeToString(shabytes[:])
-			sqlJavaScriptInsert := `INSERT INTO javascript (script, javascript_checksum) VALUES (?, ?);`
-			_, err = db.Exec(sqlJavaScriptInsert, element, sha)
+			sha = "/" + sha
+			generatedUrl := prepareScriptURL(domain.domain, sha)
+			sqlJs := `INSERT INTO javascript (script, url) VALUES (?, ?);`
+			_, err = db.Exec(sqlJs, js.Text(), generatedUrl)
 			if err != nil {
-				log.Printf("Could not insert javascript to database for: " + domain.domain)
-				return dwarf.VoidType{}
+				log.Printf("30 Could not insert JS into DB for: " + generatedUrl)
 			}
-			sqlJavaScriptRelationInsert := `INSERT INTO javascriptdomain (javascript_checksum, domain_id) VALUES (?, ?);`
-			_, err = db.Exec(sqlJavaScriptRelationInsert, sha, domain.id)
+			sqlJsRel := `INSERT INTO javascriptdomain (domain_id, url, is_external) VALUES (?, ?, ?);`
+			_, err = db.Exec(sqlJsRel, domain.id, generatedUrl, 0)
 			if err != nil {
-				log.Printf("Could not insert javascript to database for: " + domain.domain)
-				return dwarf.VoidType{}
+				log.Printf("40 Could not insert JS into DB for: " + generatedUrl)
 			}
 		}
 	}
@@ -220,7 +216,7 @@ func loadDomainsDB(ctxt context.Context) []Domain {
 		log.Fatal(err)
 	}
 
-	rows, err := db.QueryContext(ctxt, "SELECT domain_id, domain FROM domains ORDER BY RAND()")
+	rows, err := db.QueryContext(ctxt, "SELECT domain_id, domain FROM domains WHERE domain_id ORDER BY RAND()")
 	if err != nil {
 		log.Fatal(err)
 	}
