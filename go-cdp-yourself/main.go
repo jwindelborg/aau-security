@@ -177,13 +177,11 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 					_, err = db.Exec(sqlJs, string(body), scriptURL)
 					if err != nil {
 						log.Printf("10 Error inserting JS into DB for: " + scriptURL)
-						continue
 					}
 					sqlJsRel := `INSERT INTO javascriptdomain (domain_id, url, is_external) VALUES (?, ?, ?);`
 					_, err = db.Exec(sqlJsRel, domain.id, scriptURL, 1)
 					if err != nil {
 						log.Printf("20 Could not insert JS into DB for: " + scriptURL)
-						continue
 					}
 				}
 
@@ -197,13 +195,11 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 			_, err = db.Exec(sqlJs, js.Text(), generatedUrl)
 			if err != nil {
 				log.Printf("30 Could not insert JS into DB for: " + generatedUrl)
-				continue
 			}
 			sqlJsRel := `INSERT INTO javascriptdomain (domain_id, url, is_external) VALUES (?, ?, ?);`
 			_, err = db.Exec(sqlJsRel, domain.id, generatedUrl, 0)
 			if err != nil {
 				log.Printf("40 Could not insert JS into DB for: " + generatedUrl)
-				continue
 			}
 		}
 	}
