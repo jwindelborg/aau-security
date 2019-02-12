@@ -134,21 +134,21 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 
 	err = c.Run(ctxt, chromedp.Tasks{tasks})
 	if err != nil {
-		log.Printf("Could not process domain: " + domain.domain)
+		log.Printf("12 Could not process domain: " + domain.domain)
 		return dwarf.VoidType{}
 	}
 
 	sqlStmt := `UPDATE domains SET title = ? WHERE domain_id = ?;`
 	_, err = db.Exec(sqlStmt, title, domain.id)
 	if err != nil {
-		log.Printf("Error: Could not set title for: " + domain.domain)
+		log.Printf("13 Error: Could not set title for: " + domain.domain)
 	}
 
 	for _, element := range cookies {
 		sqlInsertCookie := `INSERT INTO cookie (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only) VALUES (?, ?, ?, ?, ?, ?, ?);`
 		_, err = db.Exec(sqlInsertCookie, domain.id, element.name, element.value, element.domain, element.expires, element.secure, element.httponly)
 		if err != nil {
-			log.Printf("Cookie already excists")
+			log.Printf("40 Cookie already excists")
 		}
 	}
 
@@ -159,26 +159,31 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 			scriptURL := prepareScriptURL(domain.domain, js.Attrs()["src"])
 			response, err := http.Get(scriptURL)
 			if err != nil {
-				log.Printf("Could not fetch script: " + scriptURL)
+				log.Printf("50 Could not fetch script: " + scriptURL)
+				continue
 			}
 			if response.StatusCode >= 200 && response.StatusCode < 400 {
 				body, err := ioutil.ReadAll(response.Body)
 				if err != nil {
-					log.Printf("Could not fetch body for: " + scriptURL)
+					log.Printf("60 Could not fetch body for: " + scriptURL)
+					continue
 				} else {
 					err := response.Body.Close()
 					if err != nil {
-						log.Printf("There was an error closing body for: " + scriptURL)
+						log.Printf("70 There was an error closing body for: " + scriptURL)
+						continue
 					}
 					sqlJs := `INSERT INTO javascript (script, url) VALUES (?, ?);`
 					_, err = db.Exec(sqlJs, string(body), scriptURL)
 					if err != nil {
 						log.Printf("10 Error inserting JS into DB for: " + scriptURL)
+						continue
 					}
 					sqlJsRel := `INSERT INTO javascriptdomain (domain_id, url, is_external) VALUES (?, ?, ?);`
 					_, err = db.Exec(sqlJsRel, domain.id, scriptURL, 1)
 					if err != nil {
 						log.Printf("20 Could not insert JS into DB for: " + scriptURL)
+						continue
 					}
 				}
 
@@ -192,18 +197,20 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 			_, err = db.Exec(sqlJs, js.Text(), generatedUrl)
 			if err != nil {
 				log.Printf("30 Could not insert JS into DB for: " + generatedUrl)
+				continue
 			}
 			sqlJsRel := `INSERT INTO javascriptdomain (domain_id, url, is_external) VALUES (?, ?, ?);`
 			_, err = db.Exec(sqlJsRel, domain.id, generatedUrl, 0)
 			if err != nil {
 				log.Printf("40 Could not insert JS into DB for: " + generatedUrl)
+				continue
 			}
 		}
 	}
 
 	err = db.Close()
 	if err != nil {
-		log.Fatal("Db conn could not be closed")
+		log.Fatal("80 Db conn could not be closed")
 	}
 	return dwarf.VoidType{}
 }
@@ -241,7 +248,7 @@ func loadDomainsDB(ctxt context.Context) []Domain {
 
 	err = db.Close()
 	if err != nil {
-		log.Fatal("Could not close DB conn")
+		log.Fatal("30 Could not close DB conn")
 	}
 	return domains
 }
