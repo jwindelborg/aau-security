@@ -1,9 +1,9 @@
 -- Hvilke domains laver flest cookies?
 SELECT cookie_domain,
-	COUNT(cookie_domain) AS freq
+	COUNT(cookie_domain) AS Freq
     FROM cookies
     GROUP BY cookie_domain
-    ORDER BY freq DESC
+    ORDER BY Freq DESC
     LIMIT 5;
 
 -- Hvilke domains har flest cookies?
@@ -35,18 +35,21 @@ SELECT javascript_checksum,
 
 -- Hvilke vulnerabilities er de mest hyppige?
 SELECT vulnerability_id,
-	COUNT(vulnerability_id) AS freq
+	COUNT(vulnerability_id) AS Freq
     FROM javascriptvulnerabilities
     GROUP BY vulnerability_id
-    ORDER BY freq DESC
+    ORDER BY Freq DESC
     LIMIT 5;
 
 -- Hvilke sider har flest critical vulnerabilities?
-SELECT SUM(CASE WHEN severity = 4 THEN 1 ELSE 0 END) AS freq
-    FROM vulnerabilities
-    GROUP BY severity
-    ORDER BY freq DESC
-    LIMIT 5; -- IKKE TESTET!!!
+SELECT domain, SUM(CASE WHEN vulnerabilities.severity = 3 THEN 1 ELSE 0 END) AS SevFreq
+    FROM domains
+    JOIN javascriptdomains on domains.domain_id = javascriptdomains.domain_id
+    JOIN javascriptvulnerabilities on javascriptdomains.url = javascriptvulnerabilities.js_url
+    JOIN vulnerabilities on javascriptvulnerabilities.vulnerability_id = vulnerabilities.vulnerability_id
+    GROUP BY domains.domain_id, vulnerabilities.severity
+    ORDER BY SevFreq DESC
+    LIMIT 5;
 
 -- Hvor mange sider har vi ikke data for?
 SELECT count(*)
