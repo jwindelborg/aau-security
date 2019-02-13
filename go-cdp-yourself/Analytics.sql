@@ -25,15 +25,24 @@ SELECT SUM(is_http_only) / COUNT(*) * 100 HttpPct
 SELECT SUM(is_external) / COUNT(*) * 100 extPct
     FROM javascriptdomains;
 
--- Hvilke domains har flest kendte vulnerabilities?
-SELECT javascript_checksum,
-	COUNT(javascript_checksum) AS freq
+-- Hvilke libraries har flest kendte vulnerabilities?
+SELECT js_url,
+	COUNT(js_url) AS freq
     FROM javascriptvulnerabilities
-    GROUP BY javascript_checksum
+    GROUP BY js_url
     ORDER BY freq DESC
     LIMIT 5;
 
--- Hvilke vulnerabilities er de mest hyppige?
+-- Hvilke domains har flest kendte vulnerabilities?
+SELECT domain, COUNT(domains.domain_id) AS freq
+    FROM domains
+    JOIN javascriptdomains on domains.domain_id = javascriptdomains.domain_id
+    JOIN javascriptvulnerabilities on javascriptdomains.url = javascriptvulnerabilities.js_url
+    GROUP BY domains.domain_id, domains.domain_id
+    ORDER BY freq DESC
+    LIMIT 5;
+
+-- Hvilke kendte vulnerabilities er de mest hyppige?
 SELECT vulnerability_id,
 	COUNT(vulnerability_id) AS Freq
     FROM javascriptvulnerabilities
