@@ -47,8 +47,8 @@ func main() {
 
 	c, err := chromedp.New(ctxt,
 		chromedp.WithRunnerOptions(
-			runner.ProxyServer("http://127.0.0.1:8080"), // enable for mitmproxy or Burp
-			runner.Flag("headless", true),    // enable for server, disable for local debug
+			//runner.ProxyServer("http://127.0.0.1:8080"), // enable for mitmproxy or Burp
+			runner.Flag("headless", false),    // enable for server, disable for local debug
 			runner.Flag("no-sandbox", true),
 		),
 		chromedp.WithLog(log.Printf), // Verbose output
@@ -60,7 +60,7 @@ func main() {
 	for i := 0; i < len(domains) - 1; i++ {
 		ctxDomain, cancelDomain := context.WithTimeout(context.Background(), 100*time.Second)
 		doDomain(ctxDomain, c, domains[i])
-		cancelDomain() // https://stackoverflow.com/questions/45617758/defer-in-the-loop-what-will-be-better
+		cancelDomain()
 	}
 
 	err = c.Shutdown(ctxt)
@@ -121,7 +121,6 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 					httponly:boolToInt(cookie.HTTPOnly),
 					secure:boolToInt(cookie.Secure),
 					value:cookie.Value,
-
 				}
 				cookies = append(cookies, tmpCookie)
 			}
@@ -145,7 +144,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 	}
 
 	for _, element := range cookies {
-		sqlInsertCookie := `INSERT INTO cookie (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only) VALUES (?, ?, ?, ?, ?, ?, ?);`
+		sqlInsertCookie := `INSERT INTO cookies (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only) VALUES (?, ?, ?, ?, ?, ?, ?);`
 		_, err = db.Exec(sqlInsertCookie, domain.id, element.name, element.value, element.domain, element.expires, element.secure, element.httponly)
 		if err != nil {
 			log.Printf("40 Cookie already excists")
@@ -173,12 +172,12 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 						log.Printf("70 There was an error closing body for: " + scriptURL)
 						continue
 					}
-					sqlJs := `INSERT INTO javascript (script, url) VALUES (?, ?);`
+					sqlJs := `INSERT INTO javascripts (script, url) VALUES (?, ?);`
 					_, err = db.Exec(sqlJs, string(body), scriptURL)
 					if err != nil {
 						log.Printf("10 Error inserting JS into DB for: " + scriptURL)
 					}
-					sqlJsRel := `INSERT INTO javascriptdomain (domain_id, url, is_external) VALUES (?, ?, ?);`
+					sqlJsRel := `INSERT INTO javascriptdomains (domain_id, url, is_external) VALUES (?, ?, ?);`
 					_, err = db.Exec(sqlJsRel, domain.id, scriptURL, 1)
 					if err != nil {
 						log.Printf("20 Could not insert JS into DB for: " + scriptURL)
@@ -191,12 +190,12 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 			sha := hex.EncodeToString(shabytes[:])
 			sha = "/" + sha
 			generatedUrl := prepareScriptURL(domain.domain, sha)
-			sqlJs := `INSERT INTO javascript (script, url) VALUES (?, ?);`
+			sqlJs := `INSERT INTO javascripts (script, url) VALUES (?, ?);`
 			_, err = db.Exec(sqlJs, js.Text(), generatedUrl)
 			if err != nil {
 				log.Printf("30 Could not insert JS into DB for: " + generatedUrl)
 			}
-			sqlJsRel := `INSERT INTO javascriptdomain (domain_id, url, is_external) VALUES (?, ?, ?);`
+			sqlJsRel := `INSERT INTO javascriptdomains (domain_id, url, is_external) VALUES (?, ?, ?);`
 			_, err = db.Exec(sqlJsRel, domain.id, generatedUrl, 0)
 			if err != nil {
 				log.Printf("40 Could not insert JS into DB for: " + generatedUrl)
@@ -219,7 +218,7 @@ func loadDomainsDB(ctxt context.Context) []Domain {
 		log.Fatal(err)
 	}
 
-	rows, err := db.QueryContext(ctxt, "SELECT domain_id, domain FROM domains WHERE domain_id ORDER BY RAND()")
+	rows, err := db.QueryContext(ctxt, "SELECT domain_id, domain FROM domains ORDER BY RAND()")
 	if err != nil {
 		log.Fatal(err)
 	}
