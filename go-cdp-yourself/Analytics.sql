@@ -26,10 +26,10 @@ SELECT SUM(is_external) / COUNT(*) * 100 extPct
     FROM javascriptdomains;
 
 -- Hvilke libraries har flest kendte vulnerabilities?
-SELECT js_url,
-	COUNT(js_url) AS freq
-    FROM javascriptvulnerabilities
-    GROUP BY js_url
+SELECT library_id,
+	COUNT(library_id) AS freq
+    FROM libraryvulnerabilities
+    GROUP BY library_id
     ORDER BY freq DESC
     LIMIT 5;
 
@@ -37,31 +37,33 @@ SELECT js_url,
 SELECT domain, COUNT(domains.domain_id) AS freq
     FROM domains
     JOIN javascriptdomains on domains.domain_id = javascriptdomains.domain_id
-    JOIN javascriptvulnerabilities on javascriptdomains.url = javascriptvulnerabilities.js_url
+    JOIN javascriptlibraries on javascriptdomains.url = javascriptlibraries.js_url
+    JOIN libraryvulnerabilities on javascriptlibraries.library_id = libraryvulnerabilities.library_id
     GROUP BY domains.domain_id, domains.domain_id
     ORDER BY freq DESC
-    LIMIT 5;
+    LIMIT 5; -- ikke testet. kan først testes når de nye tabeller udfyldes
 
 -- Hvilke kendte vulnerabilities er de mest hyppige?
 SELECT vulnerability_id,
 	COUNT(vulnerability_id) AS Freq
-    FROM javascriptvulnerabilities
+    FROM libraryvulnerabilities
     GROUP BY vulnerability_id
     ORDER BY Freq DESC
     LIMIT 5;
 
--- Hvilke sider har flest critical vulnerabilities?
-SELECT domain, SUM(CASE WHEN vulnerabilities.severity = 3 THEN 1 ELSE 0 END) AS SevFreq
+-- Hvilke sider har flest high eller værre vulnerabilities?
+SELECT domain, SUM(CASE WHEN vulnerabilities.severity >= 3 THEN 1 ELSE 0 END) AS SevFreq
     FROM domains
     JOIN javascriptdomains on domains.domain_id = javascriptdomains.domain_id
-    JOIN javascriptvulnerabilities on javascriptdomains.url = javascriptvulnerabilities.js_url
-    JOIN vulnerabilities on javascriptvulnerabilities.vulnerability_id = vulnerabilities.vulnerability_id
+    JOIN javascriptlibraries on javascriptdomains.url = javascriptlibraries.js_url
+    JOIN libraryvulnerabilities on javascriptlibraries.library_id = libraryvulnerabilities.library_id
+    JOIN vulnerabilities on libraryvulnerabilities.vulnerability_id = vulnerabilities.vulnerability_id
     GROUP BY domains.domain_id, vulnerabilities.severity
     ORDER BY SevFreq DESC
-    LIMIT 5;
+    LIMIT 5; -- ikke testet. kan først testes når de nye tabeller udfyldes
 
 -- Hvor mange sider har vi ikke data for?
-SELECT count(*)
+SELECT domain
 FROM domains
 WHERE domain_id NOT IN
       (SELECT domain_id FROM javascriptdomains)
