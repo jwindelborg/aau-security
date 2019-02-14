@@ -7,16 +7,16 @@ import json
 import sha3
 
 
-def severity(serstr):
-    if serstr == "none":
+def severity(severity_str):
+    if severity_str == "none":
         return 0
-    if serstr == "low":
+    if severity_str == "low":
         return 1
-    if serstr == "medium":
+    if severity_str == "medium":
         return 2
-    if serstr == "high":
+    if severity_str == "high":
         return 3
-    if serstr == "critical":
+    if severity_str == "critical":
         return 4
 
 
@@ -37,6 +37,34 @@ mycursor.execute("SELECT * FROM aau.javascripts ORDER BY RAND()")
 row = mycursor.fetchone()
 
 
+def insert_vulnerability(vuln_id, vuln_desc, vuln_severity):
+    sql = """REPLACE INTO aau.vulnerabilities (vulnerability_id, vulnerability, severity) VALUES (%s, %s, %s)"""
+    sql_params = (vuln_id, vuln_desc, vuln_severity)
+    insertDBCursor.execute(sql, sql_params)
+    insertDB.commit()
+
+
+def insert_library(lib_id, library, version):
+    sql = """REPLACE INTO aau.libraries (library_id, libname, version) VALUES (%s, %s, %s)"""
+    sql_params = (lib_id, library, version)
+    insertDBCursor.execute(sql, sql_params)
+    insertDB.commit()
+
+
+def insert_vulnerability_js_relation(library_id, vulnerability_id):
+    sql = """REPLACE INTO aau.libraryvulnerabilities (library_id, vulnerability_id) VALUES (%s, %s)"""
+    sql_params = (library_id, vulnerability_id)
+    insertDBCursor.execute(sql, sql_params)
+    insertDB.commit()
+
+
+def insert_js_library_relation(vulnerable_js_url, library_id):
+    sql = """REPLACE INTO aau.javascriptlibraries (js_url, library_id) VALUES (%s, %s)"""
+    sql_params = (vulnerable_js_url, library_id)
+    insertDBCursor.execute(sql, sql_params)
+    insertDB.commit()
+
+
 PB.start()
 stats = 0
 while row is not None:
@@ -44,14 +72,20 @@ while row is not None:
     PB.update(stats)
     with open("js_tmp/tmp.js", 'w+') as f:
         f.write(row[0])
-    std_out = subprocess.run(["retire", "--verbose", "--outputformat", "json", "--jspath", "js_tmp/"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    sub_res = subprocess.run(["retire",
+                              "--verbose",
+                              "--outputformat",
+                              "json",
+                              "--jspath",
+                              "js_tmp/"
+                              ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    if std_out.returncode != 0:
-        if std_out.returncode == 13:
-            jsstr = str(std_out.stderr.decode("utf-8"))
-            jsonjs = json.loads(jsstr)
+    if sub_res.returncode != 0:
+        if sub_res.returncode == 13:
+            real_string = str(sub_res.stderr.decode("utf-8"))
+            javascript_data = json.loads(real_string)
 
-            for data in jsonjs["data"]:
+            for data in javascript_data["data"]:
                 for results in data['results']:
                     for vulnerability in results["vulnerabilities"]:
                         if "identifiers" in vulnerability:
@@ -62,51 +96,26 @@ while row is not None:
                         else:
                             vulnerability_id = sha3.sha3_224(str(vulnerability).encode('utf-8')).hexdigest()
 
-                        vulnID = vulnerability_id
-                        vulnDesc = str(vulnerability)
-                        vulnSeverity = severity(vulnerability["severity"])
-                        vulnJsUrl = row[1]
                         library = results["component"]
                         version = results["version"]
-                        libID = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
+                        lib_id = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
 
-                        insertSQL = """REPLACE INTO aau.vulnerabilities (vulnerability_id, vulnerability, severity) VALUES (%s, %s, %s)"""
-                        insert_tuple = (vulnID, vulnDesc, vulnSeverity)
-                        insertDBCursor.execute(insertSQL, insert_tuple)
-
-                        libSQL = """REPLACE INTO aau.libraries (library_id, libname, version) VALUES (%s, %s, %s)"""
-                        lib_tuple = (libID, library, version)
-                        insertDBCursor.execute(libSQL, lib_tuple)
-
-                        libvulnSQL = """REPLACE INTO aau.libraryvulnerabilities (library_id, vulnerability_id) VALUES (%s, %s)"""
-                        libvuln_tuple = (libID, vulnID)
-                        insertDBCursor.execute(libvulnSQL, libvuln_tuple)
-
-                        javascriptlibSQL = """REPLACE INTO aau.javascriptlibraries (js_url, library_id) VALUES (%s, %s)"""
-                        jslib_tuple = (vulnJsUrl, libID)
-                        insertDBCursor.execute(javascriptlibSQL, jslib_tuple)
-
-                        insertDB.commit()
+                        insert_vulnerability(vulnerability_id, str(vulnerability), severity(vulnerability["severity"]))
+                        insert_library(lib_id, library, version)
+                        insert_vulnerability_js_relation(lib_id, vulnerability_id)
+                        insert_js_library_relation(row[1], lib_id)
     else:
-        jsstr = str(std_out.stdout.decode("utf-8"))
-        jsonjs = json.loads(jsstr)
+        real_string = str(sub_res.stdout.decode("utf-8"))
+        javascript_data = json.loads(real_string)
 
-        for data in jsonjs["data"]:
+        for data in javascript_data["data"]:
             for results in data['results']:
-                JsUrl = row[1]
                 library = results["component"]
                 version = results["version"]
-                libID = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
+                lib_id = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
 
-                libSQL = """REPLACE INTO aau.libraries (`library_id`, `libname`, `version`) VALUES (%s, %s, %s)"""
-                lib_tuple = (libID, library, version)
-                insertDBCursor.execute(libSQL, lib_tuple)
-
-                javascriptlibSQL = """REPLACE INTO aau.javascriptlibraries (js_url, library_id) VALUES (%s, %s)"""
-                jslib_tuple = (JsUrl, libID)
-                insertDBCursor.execute(javascriptlibSQL, jslib_tuple)
-
-                insertDB.commit()
+                insert_library(lib_id, library, version)
+                insert_js_library_relation(row[1], lib_id)
 
     row = mycursor.fetchone()
 
