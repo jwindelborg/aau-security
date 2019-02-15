@@ -8,7 +8,6 @@ import (
 	"github.com/anaskhan96/soup"
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
-	"github.com/chromedp/cdproto/profiler"
 	"github.com/chromedp/cdproto/security"
 	"github.com/chromedp/chromedp"
 	"github.com/chromedp/chromedp/runner"
@@ -29,12 +28,12 @@ type Domain struct {
 }
 
 type DomainCookie struct {
-	name string
-	domain string
-	value string
-	expires float64
-	httponly int
-	secure int
+	name     string
+	domain   string
+	value    string
+	expires  float64
+	httpOnly int
+	secure   int
 }
 
 func main() {
@@ -85,11 +84,10 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 
 	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
 	db.SetMaxIdleConns(15)
-	db.SetConnMaxLifetime(66 * time.Second)
+	db.SetConnMaxLifetime(60 * time.Second)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 
 	// TODO: Find a way to access DevTools network tab
 	tasks = append(tasks, chromedp.Tasks{
@@ -97,15 +95,14 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 		network.ClearBrowserCache(),
 		security.SetIgnoreCertificateErrors(true), // if intercept with burp or mitmproxy certificate is not signed
 		// TODO: Find a way to access profiler data, it gives specific knowledge about run JavaScript
-		profiler.Enable(),
-		profiler.Start(),
-		profiler.StartPreciseCoverage(),
+		//profiler.Enable(),
+		//profiler.Start(),
+		//profiler.StartPreciseCoverage(),
 		chromedp.Navigate("http://" + domain.domain),
 		chromedp.Sleep(10*time.Second),
 		chromedp.Stop(),
 		chromedp.Title(&title),
 		chromedp.EvaluateAsDevTools("document.documentElement.outerHTML.toString()", &html),
-
 
 		chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
 			cookiesObj, err := network.GetAllCookies().Do(ctxt, h)
@@ -115,12 +112,12 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 
 			for _, cookie := range cookiesObj {
 				tmpCookie := DomainCookie{
-					name:cookie.Name,
-					domain:cookie.Domain,
-					expires:cookie.Expires,
-					httponly:boolToInt(cookie.HTTPOnly),
-					secure:boolToInt(cookie.Secure),
-					value:cookie.Value,
+					name:     cookie.Name,
+					domain:   cookie.Domain,
+					expires:  cookie.Expires,
+					httpOnly: boolToInt(cookie.HTTPOnly),
+					secure:   boolToInt(cookie.Secure),
+					value:    cookie.Value,
 				}
 				cookies = append(cookies, tmpCookie)
 			}
@@ -133,87 +130,86 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 
 	err = c.Run(ctxt, chromedp.Tasks{tasks})
 	if err != nil {
-		log.Printf("12 Could not process domain: " + domain.domain)
+		log.Printf("doDomain: c.Run() could not process domain: " + domain.domain)
 		return dwarf.VoidType{}
 	}
 
 	sqlStmt := `UPDATE domains SET title = ? WHERE domain_id = ?;`
 	_, err = db.Exec(sqlStmt, title, domain.id)
 	if err != nil {
-		log.Printf("13 Error: Could not set title for: " + domain.domain)
+		log.Printf("doDomain: Could not update title for: " + domain.domain)
 	}
 
-	for _, element := range cookies {
+	for _, cookie := range cookies {
 		sqlInsertCookie := `INSERT INTO cookies (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only) VALUES (?, ?, ?, ?, ?, ?, ?);`
-		_, err = db.Exec(sqlInsertCookie, domain.id, element.name, element.value, element.domain, element.expires, element.secure, element.httponly)
+		_, err = db.Exec(sqlInsertCookie, domain.id, cookie.name, cookie.value, cookie.domain, cookie.expires, cookie.secure, cookie.httpOnly)
 		if err != nil {
-			log.Printf("40 Cookie already excists")
+			log.Printf("doDomain: Could not set cookie")
 		}
 	}
 
-	htmldom := soup.HTMLParse(html)
-	javascripts := htmldom.FindAll("script")
+	htmlDomObject := soup.HTMLParse(html)
+	javascripts := htmlDomObject.FindAll("script")
 	for _, js := range javascripts {
 		if js.Attrs()["src"] != "" {
 			scriptURL := prepareScriptURL(domain.domain, js.Attrs()["src"])
 			response, err := http.Get(scriptURL)
 			if err != nil {
-				log.Printf("50 Could not fetch script: " + scriptURL)
+				log.Printf("doDomain: Could not fetch external script: " + scriptURL)
 				continue
 			}
 			if response.StatusCode >= 200 && response.StatusCode < 400 {
 				body, err := ioutil.ReadAll(response.Body)
 				if err != nil {
-					log.Printf("60 Could not fetch body for: " + scriptURL)
+					log.Printf("doDomain: Could not get response body for external script: " + scriptURL)
 					continue
 				} else {
 					err := response.Body.Close()
 					if err != nil {
-						log.Printf("70 There was an error closing body for: " + scriptURL)
+						log.Printf("doDomain: There was an error closing body for external script: " + scriptURL)
 						continue
 					}
 					sqlJs := `INSERT INTO javascripts (script, url) VALUES (?, ?);`
 					_, err = db.Exec(sqlJs, string(body), scriptURL)
 					if err != nil {
-						log.Printf("10 Error inserting JS into DB for: " + scriptURL)
+						log.Printf("doDomain: Error inserting JS into DB for external script: " + scriptURL)
 					}
 					sqlJsRel := `INSERT INTO javascriptdomains (domain_id, url, is_external) VALUES (?, ?, ?);`
 					_, err = db.Exec(sqlJsRel, domain.id, scriptURL, 1)
 					if err != nil {
-						log.Printf("20 Could not insert JS into DB for: " + scriptURL)
+						log.Printf("doDomain: Could not insert JS relation into DB for external script: " + scriptURL)
 					}
 				}
 
 			}
 		} else {
-			shabytes := sha3.Sum256([]byte(js.Text()))
-			sha := hex.EncodeToString(shabytes[:])
-			sha = "/" + sha
+			shaBytes := sha3.Sum256([]byte(js.Text()))
+			sha := "/" + hex.EncodeToString(shaBytes[:])
 			generatedUrl := prepareScriptURL(domain.domain, sha)
 			sqlJs := `INSERT INTO javascripts (script, url) VALUES (?, ?);`
 			_, err = db.Exec(sqlJs, js.Text(), generatedUrl)
 			if err != nil {
-				log.Printf("30 Could not insert JS into DB for: " + generatedUrl)
+				log.Printf("doDomain: Could not insert clean JS into DB for internal script: " + generatedUrl)
 			}
 			sqlJsRel := `INSERT INTO javascriptdomains (domain_id, url, is_external) VALUES (?, ?, ?);`
 			_, err = db.Exec(sqlJsRel, domain.id, generatedUrl, 0)
 			if err != nil {
-				log.Printf("40 Could not insert JS into DB for: " + generatedUrl)
+				log.Printf("doDomain: Could not insert clean JS relation into DB for internal script: " + generatedUrl)
 			}
 		}
 	}
 
 	err = db.Close()
 	if err != nil {
-		log.Fatal("80 Db conn could not be closed")
+		log.Fatal("doDomain: DC conn could not be closed")
 	}
 	return dwarf.VoidType{}
 }
 
 func loadDomainsDB(ctxt context.Context) []Domain {
 	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
-	db.SetMaxIdleConns(15) // TODO: This might not have any effect
-	db.SetConnMaxLifetime(66 * time.Second) // TODO: This works, but why
+	db.SetMaxIdleConns(15)
+	db.SetConnMaxLifetime(60 * time.Second)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -222,9 +218,8 @@ func loadDomainsDB(ctxt context.Context) []Domain {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer rows.Close()
 
-	domains := []Domain{}
+	var domains []Domain
 
 	for rows.Next() {
 		var (
@@ -234,16 +229,20 @@ func loadDomainsDB(ctxt context.Context) []Domain {
 		if err := rows.Scan(&id, &domain); err != nil {
 			log.Fatal(err)
 		}
-		tmpDom := Domain{
+		tmpDomain := Domain{
 			id: id,
 			domain: strings.TrimSpace(domain),
 		}
-		domains = append(domains, tmpDom)
-	}
 
+		domains = append(domains, tmpDomain)
+	}
+	err = rows.Close()
+	if err != nil {
+		log.Fatal("LoadDomainsDB: Could not close rows")
+	}
 	err = db.Close()
 	if err != nil {
-		log.Fatal("30 Could not close DB conn")
+		log.Fatal("LoadDomainsDB: Could not close DB conn")
 	}
 	return domains
 }
@@ -263,20 +262,10 @@ func prepareScriptURL(domain string, url string) string {
 	}
 }
 
-func loadDomains(filename string) []string  {
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	lines := strings.Split(string(content), "\n")
-	return lines
-}
-
 func boolToInt(bo bool) int {
 	if bo {
 		return 1
 	} else {
 		return 0
 	}
-
 }
