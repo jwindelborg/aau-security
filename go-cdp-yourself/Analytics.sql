@@ -62,13 +62,13 @@ SELECT domain, SUM(CASE WHEN vulnerabilities.severity >= 3 THEN 1 ELSE 0 END) AS
     ORDER BY SevFreq DESC
     LIMIT 5; -- ikke testet. kan først testes når de nye tabeller udfyldes
 
--- hvilke libraries har vi fundet som ikke har vulnerabilities?
+-- Hvilke libraries har vi fundet som ikke har vulnerabilities?
 SELECT libname
     FROM libraries
     WHERE library_id NOT IN
       (SELECT library_id FROM libraryvulnerabilities);
 
--- Hvor mange sider har vi ikke data for?
+-- Hvor mange sider giver ingen data
 SELECT domain
     FROM domains
     WHERE domain_id NOT IN
