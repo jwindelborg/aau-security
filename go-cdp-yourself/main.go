@@ -67,8 +67,6 @@ func main() {
 		}
 
 		domainVisitHistory()
-
-		keepRunning = false
 	}
 
 	err = c.Shutdown(ctxt)
