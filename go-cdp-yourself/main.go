@@ -18,6 +18,7 @@ import (
 	_ "io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -42,12 +43,10 @@ func main() {
 	ctxt, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	domains := loadDomainsDB(ctxt)
-
 	c, err := chromedp.New(ctxt,
 		chromedp.WithRunnerOptions(
 			//runner.ProxyServer("http://127.0.0.1:8080"), // enable for mitmproxy or Burp
-			runner.Flag("headless", false),    // enable for server, disable for local debug
+			runner.Flag("headless", true),    // enable for server, disable for local debug
 			runner.Flag("no-sandbox", true),
 		),
 		chromedp.WithLog(log.Printf), // Verbose output
@@ -56,10 +55,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for i := 0; i < len(domains) - 1; i++ {
-		ctxDomain, cancelDomain := context.WithTimeout(context.Background(), 100*time.Second)
-		doDomain(ctxDomain, c, domains[i])
-		cancelDomain()
+	keepRunning := true
+
+	for keepRunning {
+		domains := loadDomainQueue(ctxt)
+
+		for i := 0; i < len(domains) - 1; i++ {
+			ctxDomain, cancelDomain := context.WithTimeout(context.Background(), 100*time.Second)
+			doDomain(ctxDomain, c, domains[i])
+			cancelDomain()
+		}
+
+		domainVisitHistory()
+
+		keepRunning = false
 	}
 
 	err = c.Shutdown(ctxt)
@@ -206,7 +215,9 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 	return dwarf.VoidType{}
 }
 
-func loadDomainsDB(ctxt context.Context) []Domain {
+func loadDomainQueue(ctxt context.Context) []Domain {
+	hostname, err := os.Hostname()
+
 	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
 	db.SetMaxIdleConns(15)
 	db.SetConnMaxLifetime(60 * time.Second)
@@ -214,7 +225,19 @@ func loadDomainsDB(ctxt context.Context) []Domain {
 		log.Fatal(err)
 	}
 
-	rows, err := db.QueryContext(ctxt, "SELECT domain_id, domain FROM domains ORDER BY RAND()")
+	cleanstmt := `DELETE FROM lockeddomains WHERE worker = ?`
+	_, err = db.Exec(cleanstmt, hostname)
+	if err != nil {
+		log.Printf("LoadDomainQueue: Could not delete from locked")
+	}
+
+	lockstmt := `INSERT IGNORE INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) ORDER BY RAND() LIMIT 2500;`
+	_, err = db.Exec(lockstmt, hostname)
+	if err != nil {
+		log.Printf("LoadDomainQueue: Could not lock domains")
+	}
+
+	rows, err := db.QueryContext(ctxt, "SELECT domain_id, domain FROM domains WHERE domain_id IN (SELECT domain_id FROM lockeddomains WHERE worker = ?);", hostname)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -268,4 +291,50 @@ func boolToInt(bo bool) int {
 	} else {
 		return 0
 	}
+}
+
+func domainVisitHistory() dwarf.VoidType {
+	hostname, err := os.Hostname()
+	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
+	db.SetMaxIdleConns(15)
+	db.SetConnMaxLifetime(60 * time.Second)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stmt := `INSERT IGNORE INTO domainvisithistory (domain_id, worker, time_processed) SELECT domain_id, ?, NOW() FROM lockeddomains WHERE worker = ?;`
+	_, err = db.Exec(stmt, hostname, hostname)
+	if err != nil {
+		log.Printf("domainVisitHistory: Could not update history")
+	}
+	stmt2 := `DELETE FROM lockeddomains WHERE worker = ?;`
+	_, err = db.Exec(stmt2, hostname)
+	if err != nil {
+		log.Printf("domainVisitHistory: Could not delete locks")
+	}
+
+	return dwarf.VoidType{}
+}
+
+func putdomainstodb(filename string) dwarf.VoidType  {
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	lines := strings.Split(string(content), "\n")
+
+	db, err := sql.Open("mysql", "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, line := range lines {
+		sqlInsertCookie := `INSERT INTO domains (domain, title) VALUES (?, ?);`
+		_, err = db.Exec(sqlInsertCookie, line, "")
+		if err != nil {
+			log.Printf("Shit happens")
+		}
+	}
+
+	return dwarf.VoidType{}
 }
