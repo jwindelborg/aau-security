@@ -229,7 +229,7 @@ func loadDomainQueue(ctxt context.Context) []Domain {
 		log.Printf("LoadDomainQueue: Could not delete from locked")
 	}
 
-	lockstmt := `INSERT IGNORE INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) ORDER BY RAND() LIMIT 2500;`
+	lockstmt := `INSERT IGNORE INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) ORDER BY RAND() LIMIT 100;`
 	_, err = db.Exec(lockstmt, hostname)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
