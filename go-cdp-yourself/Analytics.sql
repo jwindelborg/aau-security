@@ -6,12 +6,26 @@ SELECT cookie_domain,
     ORDER BY Freq DESC
     LIMIT 5;
 
+
+SELECT *
+    FROM cookies
+    WHERE domain_id = 640085;
+
+
+
 -- Hvilke domains har flest cookies?
 SELECT domain, COUNT(c.domain_id)
     FROM domains
     JOIN cookies c on domains.domain_id = c.domain_id
     GROUP BY c.domain_id
     ORDER BY COUNT(c.domain_id) DESC;
+
+-- Hyppigst inkluderede js url
+SELECT `url`, COUNT(`url`) AS `value_occurrence`
+FROM `javascriptdomains`
+GROUP BY `url`
+ORDER BY `value_occurrence` DESC
+LIMIT 100;
 
 -- Hvor mange cookies er secure?
 SELECT SUM(is_secure) / COUNT(*) * 100 SecurePct
@@ -25,13 +39,33 @@ SELECT SUM(is_http_only) / COUNT(*) * 100 HttpPct
 SELECT SUM(is_external) / COUNT(*) * 100 extPct
     FROM javascriptdomains;
 
--- Hvilke libraries har flest kendte vulnerabilities?
+-- hvilke libraries har haft flest kendte vulnerabilities?
+SELECT libname, COUNT(libname) AS freq
+    FROM libraries
+    JOIN libraryvulnerabilities ON libraries.library_id = libraryvulnerabilities.library_id
+    GROUP BY libname
+    ORDER BY freq DESC
+    LIMIT 99;
+
+-- hvilke libraries er skyld i flest vulnerable sider?
+SELECT libname, COUNT(domains.domain_id) AS freq
+    FROM libraries
+    JOIN libraryvulnerabilities ON libraries.library_id = libraryvulnerabilities.library_id
+    JOIN javascriptlibraries ON libraryvulnerabilities.library_id = javascriptlibraries.library_id
+    JOIN javascriptdomains ON javascriptlibraries.js_url = javascriptdomains.url
+    JOIN domains ON javascriptdomains.domain_id = domains.domain_id
+    GROUP BY libname
+    ORDER BY freq DESC
+    LIMIT 5;
+
+
+-- Hvilke libraryversioner har flest kendte vulnerabilities?
 SELECT library_id,
 	COUNT(library_id) AS freq
     FROM libraryvulnerabilities
     GROUP BY library_id
     ORDER BY freq DESC
-    LIMIT 5;
+    LIMIT 5; -- skal laves om så den viser library og versionsnummer i stedet for id
 
 -- Hvilke domains har flest kendte vulnerabilities?
 SELECT domain, COUNT(domains.domain_id) AS freq
@@ -74,4 +108,5 @@ SELECT domain
     WHERE domain_id NOT IN
       (SELECT domain_id FROM javascriptdomains)
   AND domain_id NOT IN
-      (SELECT domain_id FROM cookies);
+      (SELECT domain_id FROM cookies)
+  AND title = '';
