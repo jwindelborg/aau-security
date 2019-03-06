@@ -82,39 +82,42 @@ while row is not None:
                                           "js_tmp/"
                                           ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    if subprocess_response.returncode != 0:
-        if subprocess_response.returncode == 13:
-            real_string = str(subprocess_response.stderr.decode("utf-8"))
+    try:
+        if subprocess_response.returncode != 0:
+            if subprocess_response.returncode == 13:
+                real_string = str(subprocess_response.stderr.decode("utf-8"))
+                javascript_data = json.loads(real_string)
+
+                for data in javascript_data["data"]:
+                    for results in data['results']:
+                        for vulnerability in results["vulnerabilities"]:
+                            if "identifiers" in vulnerability and "CVE" in vulnerability["identifiers"]:
+                                vulnerability_id = vulnerability["identifiers"]["CVE"][0]
+                            else:
+                                vulnerability_id = sha3.sha3_224(str(vulnerability).encode('utf-8')).hexdigest()
+
+                            library = results["component"]
+                            version = results["version"]
+                            library_id = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
+
+                            insert_vulnerability(vulnerability_id, str(vulnerability), severity(vulnerability["severity"]))
+                            insert_library(library_id, library, version)
+                            insert_vulnerability_js_relation(library_id, vulnerability_id)
+                            insert_js_library_relation(row[1], library_id)
+        else:
+            real_string = str(subprocess_response.stdout.decode("utf-8"))
             javascript_data = json.loads(real_string)
 
             for data in javascript_data["data"]:
                 for results in data['results']:
-                    for vulnerability in results["vulnerabilities"]:
-                        if "identifiers" in vulnerability and "CVE" in vulnerability["identifiers"]:
-                            vulnerability_id = vulnerability["identifiers"]["CVE"][0]
-                        else:
-                            vulnerability_id = sha3.sha3_224(str(vulnerability).encode('utf-8')).hexdigest()
+                    library = results["component"]
+                    version = results["version"]
+                    library_id = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
 
-                        library = results["component"]
-                        version = results["version"]
-                        library_id = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
-
-                        insert_vulnerability(vulnerability_id, str(vulnerability), severity(vulnerability["severity"]))
-                        insert_library(library_id, library, version)
-                        insert_vulnerability_js_relation(library_id, vulnerability_id)
-                        insert_js_library_relation(row[1], library_id)
-    else:
-        real_string = str(subprocess_response.stdout.decode("utf-8"))
-        javascript_data = json.loads(real_string)
-
-        for data in javascript_data["data"]:
-            for results in data['results']:
-                library = results["component"]
-                version = results["version"]
-                library_id = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
-
-                insert_library(library_id, library, version)
-                insert_js_library_relation(row[1], library_id)
+                    insert_library(library_id, library, version)
+                    insert_js_library_relation(row[1], library_id)
+    except:
+        print("Could not handle " + row[1])
 
     row = fetch_cursor.fetchone()
 
