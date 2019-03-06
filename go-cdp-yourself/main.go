@@ -25,9 +25,9 @@ import (
 
 var connString = "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau"
 var siteWorstCase = 100*time.Second
-var maxDBconnections = 15
+var maxDBconnections = 5
 var maxDBtimeout = 60 * time.Second
-var queueReserved = 100
+var queueReserved = 10
 
 type Domain struct {
 	domain string
@@ -304,7 +304,7 @@ func boolToInt(bo bool) int {
 func domainVisitHistory() dwarf.VoidType {
 	hostname, err := os.Hostname()
 	db, err := sql.Open("mysql", connString)
-	db.SetMaxIdleConns(maxDBconnections)
+	db.SetMaxIdleConns(2)
 	db.SetConnMaxLifetime(maxDBtimeout)
 	if err != nil {
 		log.Fatal(err)
@@ -319,6 +319,11 @@ func domainVisitHistory() dwarf.VoidType {
 	_, err = db.Exec(stmt2, hostname)
 	if err != nil {
 		log.Printf("domainVisitHistory: Could not delete locks")
+	}
+
+	err = db.Close()
+	if err != nil {
+		log.Fatal("LoadDomainsDB: Could not close DB conn")
 	}
 
 	return dwarf.VoidType{}
