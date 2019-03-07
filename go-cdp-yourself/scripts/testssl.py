@@ -18,7 +18,7 @@ all_done = False
 
 def arg_parser():
     parser = argparse.ArgumentParser(description="Test SSL for websites")
-    parser.add_argument("threads", nargs='+', default=7, action='store', help='Number of threads to run')
+    parser.add_argument("threads", nargs='+', default=7, action='store', type=int, help='Number of threads to run')
     return parser.parse_args()
 
 
@@ -186,7 +186,7 @@ def process_batch(numofthreads):
 def main():
     args = arg_parser()
     while not all_done:
-        process_batch(args.threads)
+        process_batch(args.threads[0])
 
 
 if __name__ == "__main__":
