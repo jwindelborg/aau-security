@@ -102,6 +102,10 @@ SELECT libname
     WHERE library_id NOT IN
       (SELECT library_id FROM libraryvulnerabilities);
 
+-- Hvor mange procent har en eller anden form for vulnerability?
+SELECT (COUNT(DISTINCT vulnerabledomains.domain) / (COUNT(domains.domain_id)-4222)) * 100 VulnPct
+FROM vulnerabledomains, domains;
+
 -- Hvor mange sider giver ingen data
 SELECT domain
     FROM domains
