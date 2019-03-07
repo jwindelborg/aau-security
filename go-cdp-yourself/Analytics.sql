@@ -97,7 +97,7 @@ SELECT domain, SUM(CASE WHEN vulnerabilities.severity >= 3 THEN 1 ELSE 0 END) AS
     LIMIT 5; -- ikke testet. kan først testes når de nye tabeller udfyldes
 
 -- Hvilke libraries har vi fundet som ikke har vulnerabilities?
-SELECT libname
+SELECT libname, version
     FROM libraries
     WHERE library_id NOT IN
       (SELECT library_id FROM libraryvulnerabilities);
