@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-var connString = "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/aau"
+var connString = "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/"
 var siteWorstCase = 100*time.Second
 var maxDBconnections = 5
 var maxDBtimeout = 60 * time.Second
@@ -45,7 +45,21 @@ type DomainCookie struct {
 
 func main() {
 	var err error
+	var dbname string
 
+	if len(os.Args) < 2{
+		err := "Remember to tell which db you want to work on"
+		log.Fatal(err)
+	}
+	if os.Args[1] == "--alexa" {
+		dbname = "alexaDB"
+	} else if os.Args[1] == "--dk" {
+		dbname = "aau"
+	} else {
+		err := "How about trying an argument that actually exists?"
+		log.Fatal(err)
+	}
+	connString += dbname
 	ctxt, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
