@@ -46,6 +46,11 @@ type DomainCookie struct {
 func main() {
 	var err error
 	var dbname string
+
+	if len(os.Args) < 2{
+		err := "Remember to tell which db you want to work"
+		log.Fatal(err)
+	}
 	if os.Args[1] == "--alexa" {
 		dbname = "alexaDB"
 	} else if os.Args[1] == "--dk" {
