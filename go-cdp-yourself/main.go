@@ -48,7 +48,7 @@ func main() {
 	var dbname string
 
 	if len(os.Args) < 2{
-		err := "Remember to tell which db you want to work"
+		err := "Remember to tell which db you want to work on"
 		log.Fatal(err)
 	}
 	if os.Args[1] == "--alexa" {
