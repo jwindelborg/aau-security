@@ -119,6 +119,9 @@ def lock_domains():
                         AND domain_id NOT IN (
                           SELECT domain_id
                           FROM aau.domainsslscan)
+                        AND domain_id NOT IN (
+                        SELECT domain_id
+                        FROM aau.sslscanhistory)
                     ORDER BY RAND() LIMIT %s;"""
     lock_params = (socket.gethostname(), number_of_domains)
     lock_cursor.execute(lock_stmt, lock_params)
@@ -129,7 +132,7 @@ def lock_domains():
 def domain_log(domain_id):
     db = mysql.connector.connect(host="aau.windelborg.info", user="aau", passwd="2387AXumK52aeaSA")
     db_cursor = db.cursor()
-    stmt = """INSERT INTO aau.sslscanhistory (worker, domain_id, logged_at) VALUES (?, ?, NOW());"""
+    stmt = """INSERT INTO aau.sslscanhistory (worker, domain_id, logged_at) VALUES (%s, %s, NOW());"""
     params = (socket.gethostname(), domain_id)
     db_cursor.execute(stmt, params)
     db.commit()
