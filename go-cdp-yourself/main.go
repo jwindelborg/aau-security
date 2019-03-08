@@ -47,7 +47,7 @@ func main() {
 	var err error
 	var dbname string
 
-	if len(os.Args) < 2{
+	if len(os.Args) < 2 {
 		err := "Remember to tell which db you want to work"
 		log.Fatal(err)
 	}
