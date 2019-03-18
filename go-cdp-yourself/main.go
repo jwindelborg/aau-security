@@ -76,7 +76,7 @@ func attempt(ctxt context.Context) dwarf.VoidType {
 		lastLog = time.Now()
 		go createInstance(ctxt)
 		for true {
-			if time.Since(lastLog) > 200 * time.Minute {
+			if time.Since(lastLog) > 200 * time.Second {
 				return dwarf.VoidType{}
 			}
 		}
