@@ -25,7 +25,7 @@ import (
 
 var connString = "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/"
 var siteWorstCase = 100*time.Second
-var maxDBconnections = 5
+var maxDBconnections = 1
 var maxDBtimeout = 60 * time.Second
 var queueReserved = 10
 
@@ -110,7 +110,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 	var title string
 	var cookies []DomainCookie
 	var html string
-
+	
 	log.Printf("Doing domain: " + domain.domain)
 
 	db, err := sql.Open("mysql", connString)
@@ -253,7 +253,7 @@ func loadDomainQueue(ctxt context.Context) []Domain {
 		log.Printf("LoadDomainQueue: Could not delete from locked")
 	}
 
-	lockstmt := `INSERT IGNORE INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) ORDER BY RAND() LIMIT ?;`
+	lockstmt := `INSERT IGNORE INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) LIMIT ?;`
 	_, err = db.Exec(lockstmt, hostname, queueReserved)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
@@ -318,7 +318,7 @@ func boolToInt(bo bool) int {
 func domainVisitHistory() dwarf.VoidType {
 	hostname, err := os.Hostname()
 	db, err := sql.Open("mysql", connString)
-	db.SetMaxIdleConns(2)
+	db.SetMaxIdleConns(maxDBconnections)
 	db.SetConnMaxLifetime(maxDBtimeout)
 	if err != nil {
 		log.Fatal(err)
