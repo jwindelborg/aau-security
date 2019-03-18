@@ -119,11 +119,24 @@ def lock_domains():
                         AND domain_id NOT IN (
                           SELECT domain_id
                           FROM aau.domainsslscan)
+                        AND domain_id NOT IN (
+                        SELECT domain_id
+                        FROM aau.sslscanhistory)
                     ORDER BY RAND() LIMIT %s;"""
     lock_params = (socket.gethostname(), number_of_domains)
     lock_cursor.execute(lock_stmt, lock_params)
     lock_db.commit()
     lock_db.close()
+
+
+def domain_log(domain_id):
+    db = mysql.connector.connect(host="aau.windelborg.info", user="aau", passwd="2387AXumK52aeaSA")
+    db_cursor = db.cursor()
+    stmt = """INSERT INTO aau.sslscanhistory (worker, domain_id, logged_at) VALUES (%s, %s, NOW());"""
+    params = (socket.gethostname(), domain_id)
+    db_cursor.execute(stmt, params)
+    db.commit()
+    db.close()
 
 
 def unlock_domains():
@@ -139,7 +152,8 @@ def unlock_domains():
 def fetch_domains():
     select_db = mysql.connector.connect(host="aau.windelborg.info", user="aau", passwd="2387AXumK52aeaSA")
     select_cursor = select_db.cursor()
-    select_stmt = """SELECT domain_id, domain FROM aau.domains WHERE domain_id IN (SELECT domain_id FROM aau.ssllock WHERE worker LIKE %s)"""
+    select_stmt = """SELECT domain_id, domain FROM aau.domains WHERE domain_id IN (
+                        SELECT domain_id FROM aau.ssllock WHERE worker LIKE %s)"""
     select_params = (hostname,)
     select_cursor.execute(select_stmt, select_params)
 
@@ -155,12 +169,19 @@ def process_a_domain(domain):
     print(domain[1])
     if os.path.exists(str(os.path.dirname(__file__)) + domain[1].rstrip()):
         os.remove(str(os.path.dirname(__file__)) + domain[1].rstrip())
-    subprocess_response = subprocess.run([home + "/testssl.sh/testssl.sh", "--fast", "--warnings", "batch", "--csv", "--csvfile", domain[1].rstrip(), domain[1].rstrip()], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess_response = subprocess.run([home + "/testssl.sh/testssl.sh", "--fast",
+                                          "--warnings", "batch",
+                                          "--csv", "--csvfile",
+                                          domain[1].rstrip(), domain[1].rstrip()],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if subprocess_response.stderr:
         print("Skip: " + domain[1])
     else:
         with open(domain[1].rstrip()) as f:
             save_data(f.readlines(), domain[0])
+    if os.path.exists(str(os.path.dirname(__file__)) + domain[1].rstrip()):
+        os.remove(str(os.path.dirname(__file__)) + domain[1].rstrip())
+    domain_log(domain[0])
     running -= 1
 
 
