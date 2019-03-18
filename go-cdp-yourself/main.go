@@ -73,12 +73,10 @@ func main() {
 
 func attempt(ctxt context.Context) dwarf.VoidType {
 	for true {
-		letMeDie, killit := context.WithCancel(context.Background())
 		lastLog = time.Now()
-		go createInstance(letMeDie, ctxt)
+		go createInstance(ctxt)
 		for true {
 			if time.Since(lastLog) > 200 * time.Minute {
-				killit()
 				return dwarf.VoidType{}
 			}
 		}
@@ -86,7 +84,7 @@ func attempt(ctxt context.Context) dwarf.VoidType {
 	return dwarf.VoidType{}
 }
 
-func createInstance(letMeDie context.Context, ctxt context.Context) dwarf.VoidType {
+func createInstance(ctxt context.Context) dwarf.VoidType {
 	c, err := chromedp.New(ctxt,
 		chromedp.WithRunnerOptions(
 			//runner.ProxyServer("http://127.0.0.1:8080"), // enable for mitmproxy or Burp
