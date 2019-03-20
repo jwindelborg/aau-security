@@ -60,12 +60,11 @@ SELECT libname, COUNT(domains.domain_id) AS freq
 
 
 -- Hvilke libraryversioner har flest kendte vulnerabilities?
-SELECT library_id,
-	COUNT(library_id) AS freq
-    FROM libraryvulnerabilities
-    GROUP BY library_id
-    ORDER BY freq DESC
-    LIMIT 5; -- skal laves om så den viser library og versionsnummer i stedet for id
+SELECT libraries.libname, libraries.version, COUNT(libraryvulnerabilities.library_id) AS freq
+    FROM libraries
+    JOIN libraryvulnerabilities ON libraries.library_id = libraryvulnerabilities.library_id
+    GROUP BY libraryvulnerabilities.library_id
+    ORDER BY freq DESC;
 
 -- Hvilke domains benytter flest kendte vulnerabilities? (Tæller også vulns brugt flere gange)
 SELECT domain, COUNT(domains.domain_id) AS freq
