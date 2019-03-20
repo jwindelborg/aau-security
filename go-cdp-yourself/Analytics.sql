@@ -67,7 +67,7 @@ SELECT library_id,
     ORDER BY freq DESC
     LIMIT 5; -- skal laves om så den viser library og versionsnummer i stedet for id
 
--- Hvilke domains har flest kendte vulnerabilities?
+-- Hvilke domains benytter flest kendte vulnerabilities? (Tæller også vulns brugt flere gange)
 SELECT domain, COUNT(domains.domain_id) AS freq
     FROM domains
     JOIN javascriptdomains on domains.domain_id = javascriptdomains.domain_id
@@ -76,6 +76,15 @@ SELECT domain, COUNT(domains.domain_id) AS freq
     GROUP BY domains.domain_id, domains.domain_id
     ORDER BY freq DESC
     LIMIT 5; -- ikke testet. kan først testes når de nye tabeller udfyldes
+
+-- Hvilke domains har flest kendte unikke vulnerabilities?
+SELECT domain, COUNT(DISTINCT libraryvulnerabilities.vulnerability_id) AS freq
+    FROM domains
+    JOIN javascriptdomains on domains.domain_id = javascriptdomains.domain_id
+    JOIN javascriptlibraries on javascriptdomains.url = javascriptlibraries.js_url
+    JOIN libraryvulnerabilities on javascriptlibraries.library_id = libraryvulnerabilities.library_id
+    GROUP BY domains.domain_id, domains.domain_id
+    ORDER BY freq DESC;
 
 -- Hvilke kendte vulnerabilities er de mest hyppige?
 SELECT vulnerability_id,
