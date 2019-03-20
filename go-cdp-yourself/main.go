@@ -28,6 +28,7 @@ var siteWorstCase = 100*time.Second
 var maxDBconnections = 1
 var maxDBtimeout = 60 * time.Second
 var queueReserved = 10
+var lastLog time.Time
 
 type Domain struct {
 	domain string
@@ -44,10 +45,10 @@ type DomainCookie struct {
 }
 
 func main() {
-	var err error
 	var dbname string
+	var timescrashed = 0
 
-	if len(os.Args) < 2{
+	if len(os.Args) < 2 {
 		err := "Remember to tell which db you want to work on"
 		log.Fatal(err)
 	}
@@ -63,6 +64,27 @@ func main() {
 	ctxt, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	for true {
+		attempt(ctxt)
+		timescrashed++
+	}
+	log.Printf("%b", timescrashed)
+}
+
+func attempt(ctxt context.Context) dwarf.VoidType {
+	for true {
+		lastLog = time.Now()
+		go createInstance(ctxt)
+		for true {
+			if time.Since(lastLog) > 200 * time.Second {
+				return dwarf.VoidType{}
+			}
+		}
+	}
+	return dwarf.VoidType{}
+}
+
+func createInstance(ctxt context.Context) dwarf.VoidType {
 	c, err := chromedp.New(ctxt,
 		chromedp.WithRunnerOptions(
 			//runner.ProxyServer("http://127.0.0.1:8080"), // enable for mitmproxy or Burp
@@ -70,6 +92,8 @@ func main() {
 			runner.Flag("no-sandbox", true),
 		),
 		chromedp.WithLog(log.Printf), // Verbose output
+
+
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -102,7 +126,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	return dwarf.VoidType{}
 }
+
 
 func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidType {
 	var err error
@@ -160,6 +186,7 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 	// Consider setting a flag between sites for mitmproxy
 
 	err = c.Run(ctxt, chromedp.Tasks{tasks})
+	lastLog = time.Now()
 	if err != nil {
 		log.Printf("doDomain: c.Run() could not process domain: " + domain.domain)
 		return dwarf.VoidType{}
