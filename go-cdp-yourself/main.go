@@ -2,16 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"debug/dwarf"
 	"encoding/hex"
-	"github.com/anaskhan96/soup"
-	"github.com/chromedp/cdproto/cdp"
-	"github.com/chromedp/cdproto/network"
-	"github.com/chromedp/cdproto/security"
-	"github.com/chromedp/chromedp"
-	"github.com/chromedp/chromedp/runner"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/mafredri/cdp"
+	"github.com/mafredri/cdp/devtool"
+	"github.com/mafredri/cdp/protocol/dom"
+	"github.com/mafredri/cdp/protocol/page"
+	"github.com/mafredri/cdp/rpcc"
 	"golang.org/x/crypto/sha3"
 	_ "golang.org/x/crypto/sha3"
 	"io/ioutil"
@@ -24,7 +24,7 @@ import (
 )
 
 var connString = "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/"
-var siteWorstCase = 100*time.Second
+var siteWorstCase = 60*time.Second
 var maxDBconnections = 1
 var maxDBtimeout = 60 * time.Second
 var queueReserved = 10
@@ -44,9 +44,15 @@ type DomainCookie struct {
 	secure   int
 }
 
+type JavaScript struct {
+	script     string
+	hash       string
+	url        string
+	isExternal bool
+}
+
 func main() {
 	var dbname string
-	var timescrashed = 0
 
 	if len(os.Args) < 2 {
 		err := "Remember to tell which db you want to work on"
@@ -56,89 +62,180 @@ func main() {
 		dbname = "alexaDB"
 	} else if os.Args[1] == "--dk" {
 		dbname = "aau"
+	} else if os.Args[1] == "--nidan" {
+		dbname = "nidan"
 	} else {
 		err := "How about trying an argument that actually exists?"
 		log.Fatal(err)
 	}
 	connString += dbname
-	ctxt, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
-	for true {
-		attempt(ctxt)
-		timescrashed++
-	}
-	log.Printf("%b", timescrashed)
-}
-
-func attempt(ctxt context.Context) dwarf.VoidType {
-	for true {
-		lastLog = time.Now()
-		go createInstance(ctxt)
-		for true {
-			if time.Since(lastLog) > 200 * time.Second {
-				return dwarf.VoidType{}
-			}
-		}
-	}
-	return dwarf.VoidType{}
-}
-
-func createInstance(ctxt context.Context) dwarf.VoidType {
-	c, err := chromedp.New(ctxt,
-		chromedp.WithRunnerOptions(
-			//runner.ProxyServer("http://127.0.0.1:8080"), // enable for mitmproxy or Burp
-			runner.Flag("headless", true),    // enable for server, disable for local debug
-			runner.Flag("no-sandbox", true),
-		),
-		chromedp.WithLog(log.Printf), // Verbose output
-
-
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	keepRunning := true
-
-	for keepRunning {
-		domains := loadDomainQueue(ctxt)
-		if len(domains) == 0 {
-			keepRunning = false
+	finished := false
+	for !finished {
+		domains := loadDomainQueue()
+		if len(domains) <= 0 {
+			finished = true
 			continue
 		}
-
-		for i := 0; i < len(domains) - 1; i++ {
-			ctxDomain, cancelDomain := context.WithTimeout(context.Background(), siteWorstCase)
-			doDomain(ctxDomain, c, domains[i])
-			cancelDomain()
+		for _, domain := range domains {
+			doDomain(domain)
 		}
-
 		domainVisitHistory()
 	}
+}
 
-	err = c.Shutdown(ctxt)
+func doDomain(domain Domain) dwarf.VoidType {
+	ctx, cancel := context.WithTimeout(context.Background(), siteWorstCase)
+	defer cancel()
+
+	devTools := devtool.New("http://127.0.0.1:9222")
+	pt, err := devTools.Get(ctx, devtool.Page)
 	if err != nil {
-		log.Fatal(err)
+		pt, err = devTools.Create(ctx)
+		if err != nil {
+			log.Print(err)
+			return dwarf.VoidType{}
+		}
 	}
 
-	err = c.Wait()
+	conn, err := rpcc.DialContext(ctx, pt.WebSocketDebuggerURL)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return dwarf.VoidType{}
 	}
+	defer conn.Close() // Leaving connections open will leak memory.
+
+	c := cdp.NewClient(conn)
+
+	// Open a DOMContentEventFired client to buffer this event.
+	domContent, err := c.Page.DOMContentEventFired(ctx)
+	if err != nil {
+		log.Print(err)
+		return dwarf.VoidType{}
+	}
+	defer domContent.Close()
+
+	// Enable events on the Page domain, it's often preferrable to create
+	// event clients before enabling events so that we don't miss any.
+	if err = c.Page.Enable(ctx); err != nil {
+		log.Print(err)
+		return dwarf.VoidType{}
+	}
+
+	// Create the Navigate arguments with the optional Referrer field set.
+	navArgs := page.NewNavigateArgs("https://" + domain.domain)
+	nav, err := c.Page.Navigate(ctx, navArgs)
+	if err != nil {
+		log.Print(err)
+		return dwarf.VoidType{}
+	}
+
+	if _, err = domContent.Recv(); err != nil {
+		log.Print(err)
+		return dwarf.VoidType{}
+	}
+
+	if false { // I want to remember the option exists
+		log.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
+	}
+
+	// Fetch the document root node. We can pass nil here
+	// since this method only takes optional arguments.
+	doc, err := c.DOM.GetDocument(ctx, nil)
+	if err != nil {
+		log.Print(err)
+		return dwarf.VoidType{}
+	}
+
+	scriptIDs, err := c.DOM.QuerySelectorAll(ctx, dom.NewQuerySelectorAllArgs(doc.Root.NodeID, "script"))
+	if err != nil {
+		log.Println(err)
+		return dwarf.VoidType{}
+	}
+
+	for _, script := range scriptIDs.NodeIDs {
+		var theScript JavaScript
+		externalFlag := false
+		getOutPar := dom.GetOuterHTMLArgs{
+			NodeID:&script,
+		}
+		getAttrPar := dom.GetAttributesArgs{
+			NodeID:script,
+		}
+		outer, _ := c.DOM.GetOuterHTML(ctx, &getOutPar)
+		attr, _ := c.DOM.GetAttributes(ctx, &getAttrPar)
+		for i, atr := range attr.Attributes {
+			if atr == "src" {
+				externalFlag = true
+				scriptURL := prepareScriptURL(domain.domain,attr.Attributes[i+1])
+				http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+				response, err := http.Get(scriptURL)
+				if err != nil {
+					log.Printf("doDomain: Could not fetch external script: " + scriptURL)
+					continue
+				}
+				if response.StatusCode >= 200 && response.StatusCode < 400 {
+					body, err := ioutil.ReadAll(response.Body)
+					if err != nil {
+						log.Printf("doDomain: Could not get response body for external script: " + scriptURL)
+						continue
+					} else {
+						err := response.Body.Close()
+						if err != nil {
+							log.Printf("doDomain: There was an error closing body for external script: " + scriptURL)
+							continue
+						}
+						theScript.script = string(body)
+						theScript.hash = sha3FromStr(string(body))
+						theScript.url = scriptURL
+						theScript.isExternal = true
+					}
+				}
+			}
+		}
+		if !externalFlag {
+			if outer != nil {
+				startIndex := strings.Index(outer.OuterHTML, ">")
+				endIndex := strings.LastIndex(outer.OuterHTML, "</script>")
+				if startIndex != -1 && endIndex != -1 {
+					theScript.script = outer.OuterHTML[startIndex:endIndex]
+				}
+				theScript.script = outer.OuterHTML
+				theScript.hash = sha3FromStr(theScript.script)
+				theScript.isExternal = false
+				theScript.url = domain.domain
+			}
+		}
+		if theScript.hash != "" {
+			javaScriptToDB(domain, theScript)
+		} else {
+			log.Printf("Hash not sat for JS; the script is probably not there")
+		}
+
+	}
+
+	getAllCookies, err := cdp.Network.GetAllCookies(c.Network, ctx)
+	if err != nil {
+		log.Printf("Could not get cookies; this should be impossible")
+	}
+
+	cookiesLst := getAllCookies.Cookies
+	for _, cookie := range cookiesLst {
+		tmpCookie := DomainCookie {
+			name:     cookie.Name,
+			domain:   cookie.Domain,
+			expires:  cookie.Expires,
+			httpOnly: boolToInt(cookie.HTTPOnly),
+			secure:   boolToInt(cookie.Secure),
+			value:    cookie.Value,
+		}
+		cookieToDB(domain, tmpCookie)
+	}
+
 	return dwarf.VoidType{}
 }
 
-
-func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidType {
-	var err error
-	var tasks chromedp.Tasks
-	var title string
-	var cookies []DomainCookie
-	var html string
-	
-	log.Printf("Doing domain: " + domain.domain)
-
+func javaScriptToDB(domain Domain, script JavaScript) dwarf.VoidType {
 	db, err := sql.Open("mysql", connString)
 	db.SetMaxIdleConns(maxDBconnections)
 	db.SetConnMaxLifetime(maxDBtimeout)
@@ -146,125 +243,53 @@ func doDomain(ctxt context.Context,c *chromedp.CDP, domain Domain) dwarf.VoidTyp
 		log.Fatal(err)
 	}
 
-	// TODO: Find a way to access DevTools network tab
-	tasks = append(tasks, chromedp.Tasks{
-		network.ClearBrowserCookies(),
-		network.ClearBrowserCache(),
-		security.SetIgnoreCertificateErrors(true), // if intercept with burp or mitmproxy certificate is not signed
-		// TODO: Find a way to access profiler data, it gives specific knowledge about run JavaScript
-		//profiler.Enable(),
-		//profiler.Start(),
-		//profiler.StartPreciseCoverage(),
-		chromedp.Navigate("http://" + domain.domain),
-		chromedp.Sleep(10*time.Second),
-		chromedp.Stop(),
-		chromedp.Title(&title),
-		chromedp.EvaluateAsDevTools("document.documentElement.outerHTML.toString()", &html),
-
-		chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
-			cookiesObj, err := network.GetAllCookies().Do(ctxt, h)
-			if err != nil {
-				return err
-			}
-
-			for _, cookie := range cookiesObj {
-				tmpCookie := DomainCookie{
-					name:     cookie.Name,
-					domain:   cookie.Domain,
-					expires:  cookie.Expires,
-					httpOnly: boolToInt(cookie.HTTPOnly),
-					secure:   boolToInt(cookie.Secure),
-					value:    cookie.Value,
-				}
-				cookies = append(cookies, tmpCookie)
-			}
-
-			return nil
-		}),
-	})
-
-	// Consider setting a flag between sites for mitmproxy
-
-	err = c.Run(ctxt, chromedp.Tasks{tasks})
-	lastLog = time.Now()
+	// JavaScript Save
+	sqlJs := `INSERT IGNORE INTO javascripts (script, scriptHash, javascriptDiscovered) VALUES (?, ?, NOW());`
+	_, err = db.Exec(sqlJs, script.script, script.hash)
 	if err != nil {
-		log.Printf("doDomain: c.Run() could not process domain: " + domain.domain)
-		return dwarf.VoidType{}
+		log.Printf("javaScriptToDB: Error inserting JS into DB for external script: " + script.hash)
 	}
-
-	sqlStmt := `UPDATE domains SET title = ? WHERE domain_id = ?;`
-	_, err = db.Exec(sqlStmt, title, domain.id)
+	// JavaScript Domain save
+	sqlJsRel := `INSERT IGNORE INTO javascriptdomains (domain_id, scriptHash, url, is_external) VALUES (?, ?, ?, ?);`
+	_, err = db.Exec(sqlJsRel, domain.id, script.hash, script.url, script.isExternal)
 	if err != nil {
-		log.Printf("doDomain: Could not update title for: " + domain.domain)
-	}
-
-	for _, cookie := range cookies {
-		sqlInsertCookie := `INSERT INTO cookies (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only) VALUES (?, ?, ?, ?, ?, ?, ?);`
-		_, err = db.Exec(sqlInsertCookie, domain.id, cookie.name, cookie.value, cookie.domain, cookie.expires, cookie.secure, cookie.httpOnly)
-		if err != nil {
-			log.Printf("doDomain: Could not set cookie")
-		}
-	}
-
-	htmlDomObject := soup.HTMLParse(html)
-	javascripts := htmlDomObject.FindAll("script")
-	for _, js := range javascripts {
-		if js.Attrs()["src"] != "" {
-			scriptURL := prepareScriptURL(domain.domain, js.Attrs()["src"])
-			response, err := http.Get(scriptURL)
-			if err != nil {
-				log.Printf("doDomain: Could not fetch external script: " + scriptURL)
-				continue
-			}
-			if response.StatusCode >= 200 && response.StatusCode < 400 {
-				body, err := ioutil.ReadAll(response.Body)
-				if err != nil {
-					log.Printf("doDomain: Could not get response body for external script: " + scriptURL)
-					continue
-				} else {
-					err := response.Body.Close()
-					if err != nil {
-						log.Printf("doDomain: There was an error closing body for external script: " + scriptURL)
-						continue
-					}
-					sqlJs := `INSERT INTO javascripts (script, url) VALUES (?, ?);`
-					_, err = db.Exec(sqlJs, string(body), scriptURL)
-					if err != nil {
-						log.Printf("doDomain: Error inserting JS into DB for external script: " + scriptURL)
-					}
-					sqlJsRel := `INSERT INTO javascriptdomains (domain_id, url, is_external) VALUES (?, ?, ?);`
-					_, err = db.Exec(sqlJsRel, domain.id, scriptURL, 1)
-					if err != nil {
-						log.Printf("doDomain: Could not insert JS relation into DB for external script: " + scriptURL)
-					}
-				}
-
-			}
-		} else {
-			shaBytes := sha3.Sum256([]byte(js.Text()))
-			sha := "/" + hex.EncodeToString(shaBytes[:])
-			generatedUrl := prepareScriptURL(domain.domain, sha)
-			sqlJs := `INSERT INTO javascripts (script, url) VALUES (?, ?);`
-			_, err = db.Exec(sqlJs, js.Text(), generatedUrl)
-			if err != nil {
-				log.Printf("doDomain: Could not insert clean JS into DB for internal script: " + generatedUrl)
-			}
-			sqlJsRel := `INSERT INTO javascriptdomains (domain_id, url, is_external) VALUES (?, ?, ?);`
-			_, err = db.Exec(sqlJsRel, domain.id, generatedUrl, 0)
-			if err != nil {
-				log.Printf("doDomain: Could not insert clean JS relation into DB for internal script: " + generatedUrl)
-			}
-		}
+		log.Printf("javaScriptToDB: Could not insert JS relation into DB for external script: " + script.hash)
 	}
 
 	err = db.Close()
 	if err != nil {
-		log.Fatal("doDomain: DC conn could not be closed")
+		log.Fatal("javaScriptToDB: DB conn could not be closed")
 	}
 	return dwarf.VoidType{}
 }
 
-func loadDomainQueue(ctxt context.Context) []Domain {
+func cookieToDB(domain Domain, cookie DomainCookie) dwarf.VoidType {
+	db, err := sql.Open("mysql", connString)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db.SetMaxIdleConns(maxDBconnections)
+	db.SetConnMaxLifetime(maxDBtimeout)
+
+	sqlInsertCookie := `INSERT IGNORE INTO cookies (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only, cookie_added) VALUES (?, ?, ?, ?, ?, ?, ?, now());`
+	_, err = db.Exec(sqlInsertCookie, domain.id, cookie.name, cookie.value, cookie.domain, cookie.expires, cookie.secure, cookie.httpOnly)
+	if err != nil {
+		log.Printf("cookieToDB: Could not save cookie")
+	}
+
+	err = db.Close()
+	if err != nil {
+		log.Fatal("cookieToDB: db conn could not be closed")
+	}
+
+	return dwarf.VoidType{}
+}
+
+func loadDomainQueue() []Domain {
+	ctx, cancel := context.WithTimeout(context.Background(), siteWorstCase)
+	defer cancel()
+
 	hostname, err := os.Hostname()
 
 	db, err := sql.Open("mysql", connString)
@@ -286,7 +311,7 @@ func loadDomainQueue(ctxt context.Context) []Domain {
 		log.Printf("LoadDomainQueue: Could not lock domains")
 	}
 
-	rows, err := db.QueryContext(ctxt, "SELECT domain_id, domain FROM domains WHERE domain_id IN (SELECT domain_id FROM lockeddomains WHERE worker = ?);", hostname)
+	rows, err := db.QueryContext(ctx, "SELECT domain_id, domain FROM domains WHERE domain_id IN (SELECT domain_id FROM lockeddomains WHERE worker = ?);", hostname)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -295,14 +320,14 @@ func loadDomainQueue(ctxt context.Context) []Domain {
 
 	for rows.Next() {
 		var (
-			id int
+			id     int
 			domain string
 		)
 		if err := rows.Scan(&id, &domain); err != nil {
 			log.Fatal(err)
 		}
-		tmpDomain := Domain{
-			id: id,
+		tmpDomain := Domain {
+			id:     id,
 			domain: strings.TrimSpace(domain),
 		}
 
@@ -328,9 +353,13 @@ func prepareScriptURL(domain string, url string) string {
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url,"https://") {
 		return url
 	} else if strings.HasPrefix(url,"//") {
-		return "http://" + domain + url
+		return "http://" + url[2:]
 	} else {
-		return "http://" + domain + url
+		if strings.HasPrefix(url, "/") {
+			return "http://" + domain + url
+		} else {
+			return "http://" + domain + "/" + url
+		}
 	}
 }
 
@@ -342,14 +371,19 @@ func boolToInt(bo bool) int {
 	}
 }
 
+func sha3FromStr(str string) string {
+	shaBytes := sha3.Sum256([]byte(str))
+	return hex.EncodeToString(shaBytes[:])
+}
+
 func domainVisitHistory() dwarf.VoidType {
 	hostname, err := os.Hostname()
 	db, err := sql.Open("mysql", connString)
-	db.SetMaxIdleConns(maxDBconnections)
-	db.SetConnMaxLifetime(maxDBtimeout)
 	if err != nil {
 		log.Fatal(err)
 	}
+	db.SetMaxIdleConns(maxDBconnections)
+	db.SetConnMaxLifetime(maxDBtimeout)
 
 	stmt := `INSERT IGNORE INTO domainvisithistory (domain_id, worker, time_processed) SELECT domain_id, ?, NOW() FROM lockeddomains WHERE worker = ?;`
 	_, err = db.Exec(stmt, hostname, hostname)
