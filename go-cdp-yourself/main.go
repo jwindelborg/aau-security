@@ -196,12 +196,13 @@ func doDomain(domain Domain) dwarf.VoidType {
 		}
 		if !externalFlag {
 			if outer != nil {
-				startIndex := strings.Index(outer.OuterHTML, ">")
+				startIndex := strings.Index(outer.OuterHTML, ">") + 1
 				endIndex := strings.LastIndex(outer.OuterHTML, "</script>")
 				if startIndex != -1 && endIndex != -1 {
 					theScript.script = outer.OuterHTML[startIndex:endIndex]
+				} else {
+					theScript.script = outer.OuterHTML
 				}
-				theScript.script = outer.OuterHTML
 				theScript.hash = sha3FromStr(theScript.script)
 				theScript.isExternal = false
 				theScript.url = domain.domain
