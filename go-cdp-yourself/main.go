@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-var connString = "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/"
+var connString = "aau:2387AXumK52aeaSA@tcp(142.93.109.128:3306)/"
 var siteWorstCase = 80*time.Second
 var queueReserved = 10
 
