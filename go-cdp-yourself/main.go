@@ -51,8 +51,8 @@ type JavaScript struct {
 func main() {
 	var dbname string
 
-	if len(os.Args) < 2 {
-		err := "Remember to tell which db you want to work on"
+	if len(os.Args) < 4 { // TODO: More input validation!
+		err := "First parameter the DB\n Second parameter the port of the chromeDP (often 9222)\nThird parameter the worker name"
 		log.Fatal(err)
 	}
 	if os.Args[1] == "--alexa" {
@@ -66,27 +66,29 @@ func main() {
 		log.Fatal(err)
 	}
 	connString += dbname
+	port := os.Args[2]
+	workerName := os.Args[3]
 
 	finished := false
 	for !finished {
-		domains := loadDomainQueue()
+		domains := loadDomainQueue(workerName)
 		if len(domains) <= 0 {
 			finished = true
 			continue
 		}
 		for _, domain := range domains {
 			log.Printf("Doing domain: " + domain.domain)
-			doDomain(domain)
+			doDomain(domain, port)
 		}
-		domainVisitHistory()
+		domainVisitHistory(workerName)
 	}
 }
 
-func doDomain(domain Domain) dwarf.VoidType {
+func doDomain(domain Domain, port string) dwarf.VoidType {
 	ctx, cancel := context.WithTimeout(context.Background(), siteWorstCase)
 	defer cancel()
 
-	devTools := devtool.New("http://127.0.0.1:9222")
+	devTools := devtool.New("http://127.0.0.1:" + port)
 	pt, err := devTools.Get(ctx, devtool.Page)
 	if err != nil {
 		pt, err = devTools.Create(ctx)
@@ -118,6 +120,16 @@ func doDomain(domain Domain) dwarf.VoidType {
 	if err = c.Page.Enable(ctx); err != nil {
 		log.Print(err)
 		return dwarf.VoidType{}
+	}
+
+	// Clean up
+	err = c.Network.ClearBrowserCache(ctx)
+	if err != nil {
+		log.Print(err)
+	}
+	err = c.Network.ClearBrowserCookies(ctx)
+	if err != nil {
+		log.Print(err)
 	}
 
 	// Create the Navigate arguments with the optional Referrer field set.
@@ -280,10 +292,8 @@ func cookieToDB(domain Domain, cookie DomainCookie) dwarf.VoidType {
 	return dwarf.VoidType{}
 }
 
-func loadDomainQueue() []Domain {
+func loadDomainQueue(workerName string) []Domain {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	hostname, err := os.Hostname()
 
 	db, err := sql.Open("mysql", connString)
 	if err != nil {
@@ -291,18 +301,18 @@ func loadDomainQueue() []Domain {
 	}
 
 	cleanstmt := `DELETE FROM lockeddomains WHERE worker = ?`
-	_, err = db.Exec(cleanstmt, hostname)
+	_, err = db.Exec(cleanstmt, workerName)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not delete from locked")
 	}
 
 	lockstmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) LIMIT ?;`
-	_, err = db.Exec(lockstmt, hostname, queueReserved)
+	_, err = db.Exec(lockstmt, workerName, queueReserved)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
 	}
 
-	rows, err := db.QueryContext(ctx, "SELECT domain_id, domain FROM domains WHERE domain_id IN (SELECT domain_id FROM lockeddomains WHERE worker = ?);", hostname)
+	rows, err := db.QueryContext(ctx, "SELECT domain_id, domain FROM domains WHERE domain_id IN (SELECT domain_id FROM lockeddomains WHERE worker = ?);", workerName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -368,20 +378,19 @@ func sha3FromStr(str string) string {
 	return hex.EncodeToString(shaBytes[:])
 }
 
-func domainVisitHistory() dwarf.VoidType {
-	hostname, err := os.Hostname()
+func domainVisitHistory(workerName string) dwarf.VoidType {
 	db, err := sql.Open("mysql", connString)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	stmt := `INSERT INTO domainvisithistory (domain_id, worker, time_processed) SELECT domain_id, ?, NOW() FROM lockeddomains WHERE worker = ?;`
-	_, err = db.Exec(stmt, hostname, hostname)
+	_, err = db.Exec(stmt, workerName, workerName)
 	if err != nil {
 		log.Printf("domainVisitHistory: Could not update history")
 	}
 	stmt2 := `DELETE FROM lockeddomains WHERE worker = ?;`
-	_, err = db.Exec(stmt2, hostname)
+	_, err = db.Exec(stmt2, workerName)
 	if err != nil {
 		log.Printf("domainVisitHistory: Could not delete locks")
 	}
