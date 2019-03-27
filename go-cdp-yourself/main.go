@@ -27,7 +27,7 @@ var connString = "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/"
 var siteWorstCase = 60*time.Second
 var maxDBconnections = 1
 var maxDBtimeout = 60 * time.Second
-var queueReserved = 10
+var queueReserved = 100
 var lastLog time.Time
 
 type Domain struct {
@@ -78,6 +78,7 @@ func main() {
 			continue
 		}
 		for _, domain := range domains {
+			log.Printf("Doing domain: " + domain.domain)
 			doDomain(domain)
 		}
 		domainVisitHistory()
