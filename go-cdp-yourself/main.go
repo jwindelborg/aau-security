@@ -24,11 +24,8 @@ import (
 )
 
 var connString = "aau:2387AXumK52aeaSA@tcp(85.191.223.61:3306)/"
-var siteWorstCase = 60*time.Second
-var maxDBconnections = 1
-var maxDBtimeout = 60 * time.Second
-var queueReserved = 100
-var lastLog time.Time
+var siteWorstCase = 80*time.Second
+var queueReserved = 10
 
 type Domain struct {
 	domain string
@@ -239,8 +236,6 @@ func doDomain(domain Domain) dwarf.VoidType {
 
 func javaScriptToDB(domain Domain, script JavaScript) dwarf.VoidType {
 	db, err := sql.Open("mysql", connString)
-	db.SetMaxIdleConns(maxDBconnections)
-	db.SetConnMaxLifetime(maxDBtimeout)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -271,9 +266,6 @@ func cookieToDB(domain Domain, cookie DomainCookie) dwarf.VoidType {
 		log.Fatal(err)
 	}
 
-	db.SetMaxIdleConns(maxDBconnections)
-	db.SetConnMaxLifetime(maxDBtimeout)
-
 	sqlInsertCookie := `INSERT IGNORE INTO cookies (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only, cookie_added) VALUES (?, ?, ?, ?, ?, ?, ?, now());`
 	_, err = db.Exec(sqlInsertCookie, domain.id, cookie.name, cookie.value, cookie.domain, cookie.expires, cookie.secure, cookie.httpOnly)
 	if err != nil {
@@ -289,14 +281,11 @@ func cookieToDB(domain Domain, cookie DomainCookie) dwarf.VoidType {
 }
 
 func loadDomainQueue() []Domain {
-	ctx, cancel := context.WithTimeout(context.Background(), siteWorstCase)
-	defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	hostname, err := os.Hostname()
 
 	db, err := sql.Open("mysql", connString)
-	db.SetMaxIdleConns(maxDBconnections)
-	db.SetConnMaxLifetime(maxDBtimeout)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -307,7 +296,7 @@ func loadDomainQueue() []Domain {
 		log.Printf("LoadDomainQueue: Could not delete from locked")
 	}
 
-	lockstmt := `INSERT IGNORE INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) LIMIT ?;`
+	lockstmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) LIMIT ?;`
 	_, err = db.Exec(lockstmt, hostname, queueReserved)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
@@ -343,6 +332,7 @@ func loadDomainQueue() []Domain {
 	if err != nil {
 		log.Fatal("LoadDomainsDB: Could not close DB conn")
 	}
+	cancel()
 	return domains
 }
 
@@ -384,10 +374,8 @@ func domainVisitHistory() dwarf.VoidType {
 	if err != nil {
 		log.Fatal(err)
 	}
-	db.SetMaxIdleConns(maxDBconnections)
-	db.SetConnMaxLifetime(maxDBtimeout)
 
-	stmt := `INSERT IGNORE INTO domainvisithistory (domain_id, worker, time_processed) SELECT domain_id, ?, NOW() FROM lockeddomains WHERE worker = ?;`
+	stmt := `INSERT INTO domainvisithistory (domain_id, worker, time_processed) SELECT domain_id, ?, NOW() FROM lockeddomains WHERE worker = ?;`
 	_, err = db.Exec(stmt, hostname, hostname)
 	if err != nil {
 		log.Printf("domainVisitHistory: Could not update history")
