@@ -82,9 +82,26 @@ func main() {
 		}
 		domainVisitHistory(workerName)
 	}
+	log.Printf("No more domains to process!")
 }
 
 func doDomain(domain Domain, port string) dwarf.VoidType {
+
+	checkChrome := false
+	for !checkChrome {
+		chromeUp, err := http.Get("http://127.0.0.1:" + port)
+		if err != nil {
+			log.Printf("Chrome not up, let's wait for a moment")
+			time.Sleep(10*time.Second)
+			continue
+		} else if chromeUp.StatusCode != 200 {
+			log.Printf("Chrome not up, let's wait for a moment")
+			time.Sleep(10*time.Second)
+			continue
+		}
+		checkChrome = true
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), siteWorstCase)
 	defer cancel()
 
@@ -227,7 +244,7 @@ func doDomain(domain Domain, port string) dwarf.VoidType {
 
 	getAllCookies, err := cdp.Network.GetAllCookies(c.Network, ctx)
 	if err != nil {
-		log.Printf("Could not get cookies; this should be impossible")
+		log.Printf("Could not get cookies")
 	}
 
 	cookiesLst := getAllCookies.Cookies
