@@ -19,6 +19,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -50,7 +51,7 @@ type JavaScript struct {
 
 func main() {
 	var dbName string
-
+	channel := make(chan string)
 	if len(os.Args) < 4 { // TODO: More input validation!
 		err := "First parameter the DB\n Second parameter the port of the chromeDP (often 9222)\nThird parameter the worker name"
 		log.Fatal(err)
@@ -68,8 +69,9 @@ func main() {
 	connString += dbName
 	port := os.Args[2]
 	workerName := os.Args[3]
-
+	go functhatmakessurethechromeinstanceisworkingifitisnotitjuststartsanewone(port, channel)
 	finished := false
+
 	for !finished {
 		domains := loadDomainQueue(workerName)
 		if len(domains) <= 0 {
@@ -78,23 +80,54 @@ func main() {
 		}
 		for _, domain := range domains {
 			log.Printf("Doing domain: " + domain.domain)
-			doDomain(domain, port)
+			doDomain(domain, port, channel)
 		}
 		domainVisitHistory(workerName)
 	}
 	log.Printf("No more domains to process!")
 }
 
-func doDomain(domain Domain, port string) dwarf.VoidType {
+func functhatmakessurethechromeinstanceisworkingifitisnotitjuststartsanewone(port string, channel chan string) {
+
+	cmd := exec.Command("google-chrome", "--headless", "--remote-debugging-port=" + port, "--disable-gpu")
+	if err := cmd.Start(); err != nil {
+		log.Fatal(err)
+	}
+
+	for true {
+		switch stmt := <-channel; stmt {
+		case "fixed":
+			time.Sleep(9 * time.Second)
+			continue
+		case "fix":
+			// Kill it:
+			if err := cmd.Process.Kill(); err != nil {
+				log.Fatal("failed to kill process: ", err)
+			}
+			if err := cmd.Start(); err != nil {
+				log.Fatal(err)
+			}
+			channel <- "fixed"
+
+		default:
+			log.Fatal("Unknown channel")
+		}
+	}
+
+}
+
+func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 
 	checkChrome := false
 	for !checkChrome {
 		chromeUp, err := http.Get("http://127.0.0.1:" + port)
 		if err != nil {
+			channel <- "fix"
 			log.Printf("Chrome not up, let's wait for a moment")
 			time.Sleep(10*time.Second)
 			continue
 		} else if chromeUp.StatusCode != 200 {
+			channel <- "fix"
 			log.Printf("Chrome not up, let's wait for status code 200")
 			time.Sleep(10*time.Second)
 			continue
