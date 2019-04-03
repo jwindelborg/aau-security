@@ -49,23 +49,23 @@ type JavaScript struct {
 }
 
 func main() {
-	var dbname string
+	var dbName string
 
 	if len(os.Args) < 4 { // TODO: More input validation!
 		err := "First parameter the DB\n Second parameter the port of the chromeDP (often 9222)\nThird parameter the worker name"
 		log.Fatal(err)
 	}
 	if os.Args[1] == "--alexa" {
-		dbname = "alexaDB"
+		dbName = "alexaDB"
 	} else if os.Args[1] == "--dk" {
-		dbname = "aau"
+		dbName = "aau"
 	} else if os.Args[1] == "--nidan" {
-		dbname = "nidan"
+		dbName = "nidan"
 	} else {
 		err := "How about trying an argument that actually exists?"
 		log.Fatal(err)
 	}
-	connString += dbname
+	connString += dbName
 	port := os.Args[2]
 	workerName := os.Args[3]
 
