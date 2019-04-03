@@ -95,7 +95,7 @@ func doDomain(domain Domain, port string) dwarf.VoidType {
 			time.Sleep(10*time.Second)
 			continue
 		} else if chromeUp.StatusCode != 200 {
-			log.Printf("Chrome not up, let's wait for a moment")
+			log.Printf("Chrome not up, let's wait for status code 200")
 			time.Sleep(10*time.Second)
 			continue
 		}
@@ -132,7 +132,7 @@ func doDomain(domain Domain, port string) dwarf.VoidType {
 	}
 	defer domContent.Close()
 
-	// Enable events on the Page domain, it's often preferrable to create
+	// Enable events on the Page domain, it's often preferable to create
 	// event clients before enabling events so that we don't miss any.
 	if err = c.Page.Enable(ctx); err != nil {
 		log.Print(err)
