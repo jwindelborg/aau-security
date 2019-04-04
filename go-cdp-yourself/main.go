@@ -114,7 +114,7 @@ func startAndHandleChrome(port string, channel chan string) {
 			}
 
 			if err := cmd.Start(); err != nil {
-				log.Fatal(err)
+				log.Print(err)
 			}
 			channel <- "fixed"
 		case "done":
