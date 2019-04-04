@@ -142,6 +142,7 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 		if err != nil {
 			channel <- "fix"
 			log.Printf("Chrome not up, let's wait for a moment")
+			log.Print(err)
 			time.Sleep(10*time.Second)
 			continue
 		} else if chromeUp.StatusCode != 200 {
@@ -250,17 +251,20 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 				response, err := http.Get(scriptURL)
 				if err != nil {
 					log.Printf("doDomain: Could not fetch external script: " + scriptURL)
+					log.Print(err)
 					continue
 				}
 				if response.StatusCode >= 200 && response.StatusCode < 400 {
 					body, err := ioutil.ReadAll(response.Body)
 					if err != nil {
 						log.Printf("doDomain: Could not get response body for external script: " + scriptURL)
+						log.Print(err)
 						continue
 					} else {
 						err := response.Body.Close()
 						if err != nil {
 							log.Printf("doDomain: There was an error closing body for external script: " + scriptURL)
+							log.Print(err)
 							continue
 						}
 						theScript.script = string(body)
@@ -296,6 +300,7 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 	getAllCookies, err := cdp.Network.GetAllCookies(c.Network, ctx)
 	if err != nil {
 		log.Printf("Could not get cookies")
+		log.Print(err)
 	}
 
 	cookiesLst := getAllCookies.Cookies
@@ -325,16 +330,19 @@ func javaScriptToDB(domain Domain, script JavaScript) dwarf.VoidType {
 	_, err = db.Exec(sqlJs, script.script, script.hash)
 	if err != nil {
 		log.Printf("javaScriptToDB: Error inserting JS into DB for external script: " + script.hash)
+		log.Print(err)
 	}
 	// JavaScript Domain save
 	sqlJsRel := `INSERT IGNORE INTO javascriptdomains (domain_id, scriptHash, url, is_external) VALUES (?, ?, ?, ?);`
 	_, err = db.Exec(sqlJsRel, domain.id, script.hash, script.url, script.isExternal)
 	if err != nil {
 		log.Printf("javaScriptToDB: Could not insert JS relation into DB for external script: " + script.hash)
+		log.Print(err)
 	}
 
 	err = db.Close()
 	if err != nil {
+		log.Print(err)
 		log.Fatal("javaScriptToDB: DB conn could not be closed")
 	}
 	return dwarf.VoidType{}
@@ -350,10 +358,12 @@ func cookieToDB(domain Domain, cookie DomainCookie) dwarf.VoidType {
 	_, err = db.Exec(sqlInsertCookie, domain.id, cookie.name, cookie.value, cookie.domain, cookie.expires, cookie.secure, cookie.httpOnly)
 	if err != nil {
 		log.Printf("cookieToDB: Could not save cookie")
+		log.Print(err)
 	}
 
 	err = db.Close()
 	if err != nil {
+		log.Print(err)
 		log.Fatal("cookieToDB: db conn could not be closed")
 	}
 
@@ -372,12 +382,14 @@ func loadDomainQueue(workerName string) []Domain {
 	_, err = db.Exec(cleanstmt, workerName)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not delete from locked")
+		log.Print(err)
 	}
 
 	lockstmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) LIMIT ?;`
 	_, err = db.Exec(lockstmt, workerName, queueReserved)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
+		log.Print(err)
 	}
 
 	rows, err := db.QueryContext(ctx, "SELECT domain_id, domain FROM domains WHERE domain_id IN (SELECT domain_id FROM lockeddomains WHERE worker = ?);", workerName)
@@ -404,10 +416,12 @@ func loadDomainQueue(workerName string) []Domain {
 	}
 	err = rows.Close()
 	if err != nil {
+		log.Print(err)
 		log.Fatal("LoadDomainsDB: Could not close rows")
 	}
 	err = db.Close()
 	if err != nil {
+		log.Print(err)
 		log.Fatal("LoadDomainsDB: Could not close DB conn")
 	}
 	cancel()
@@ -456,15 +470,18 @@ func domainVisitHistory(workerName string) dwarf.VoidType {
 	_, err = db.Exec(stmt, workerName, workerName)
 	if err != nil {
 		log.Printf("domainVisitHistory: Could not update history")
+		log.Print(err)
 	}
 	stmt2 := `DELETE FROM lockeddomains WHERE worker = ?;`
 	_, err = db.Exec(stmt2, workerName)
 	if err != nil {
 		log.Printf("domainVisitHistory: Could not delete locks")
+		log.Print(err)
 	}
 
 	err = db.Close()
 	if err != nil {
+		log.Print(err)
 		log.Fatal("LoadDomainsDB: Could not close DB conn")
 	}
 
