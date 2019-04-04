@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -69,7 +70,7 @@ func main() {
 	connString += dbName
 	port := os.Args[2]
 	workerName := os.Args[3]
-	go functhatmakessurethechromeinstanceisworkingifitisnotitjuststartsanewone(port, channel)
+	go startAndHandleChrome(port, channel)
 	finished := false
 
 	for !finished {
@@ -85,33 +86,50 @@ func main() {
 		domainVisitHistory(workerName)
 	}
 	log.Printf("No more domains to process!")
+	channel <- "done"
 }
 
-func functhatmakessurethechromeinstanceisworkingifitisnotitjuststartsanewone(port string, channel chan string) {
+func startAndHandleChrome(port string, channel chan string) {
 
-	cmd := exec.Command("google-chrome", "--headless", "--remote-debugging-port=" + port, "--disable-gpu")
+	cmd := exec.Command("google-chrome-stable", "--headless", "--remote-debugging-port=" + port, "--disable-gpu")
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
+	time.Sleep(2 * time.Second)
 
 	for true {
 		switch stmt := <-channel; stmt {
 		case "fixed":
-			time.Sleep(9 * time.Second)
+			time.Sleep(3 * time.Second)
 			continue
 		case "fix":
 			// Kill it:
-			if err := cmd.Process.Kill(); err != nil {
+			err := cmd.Process.Signal(syscall.SIGTERM)
+			if err != nil {
 				log.Fatal("failed to kill process: ", err)
 			}
+			_, err = cmd.Process.Wait()
+			if err != nil {
+				log.Fatal(err)
+			}
+
 			if err := cmd.Start(); err != nil {
 				log.Fatal(err)
 			}
 			channel <- "fixed"
-
+		case "done":
+			err := cmd.Process.Signal(syscall.SIGTERM)
+			if err != nil {
+				log.Fatal("failed to kill process: ", err)
+			}
+			_, err = cmd.Process.Wait()
+			if err != nil {
+				log.Fatal(err)
+			}
 		default:
 			log.Fatal("Unknown channel")
 		}
+		time.Sleep(3 * time.Second)
 	}
 
 }
