@@ -92,7 +92,7 @@ func main() {
 
 func startAndHandleChrome(port string, channel chan string) {
 
-	cmd := exec.Command("google-chrome", "--headless", "--remote-debugging-port=" + port, "--disable-gpu")
+	cmd := exec.Command("google-chrome-stable", "--headless", "--remote-debugging-port=" + port, "--disable-gpu")
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
