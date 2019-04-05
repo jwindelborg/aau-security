@@ -19,61 +19,51 @@ def severity(severity_str):
     if severity_str == "critical":
         return 4
 
-if len(sys.argv) < 2:
-    print("Remember to tell which db you want to work on")
-    sys.exit()
-if os.Args[1] == "--alexa":
-    dbname = "alexaDB"
-elif os.Args[1] == "--dk":
-    dbname = "aau"
-else:
-    print("How about trying an argument that actually exists?")
-    sys.exit()
 
-count_db = mysql.connector.connect(host="aau.windelborg.info", user="aau", passwd="2387AXumK52aeaSA")
-fetch_db = mysql.connector.connect(host="aau.windelborg.info", user="aau", passwd="2387AXumK52aeaSA")
-insert_db = mysql.connector.connect(host="aau.windelborg.info", user="aau", passwd="2387AXumK52aeaSA")
+count_db = mysql.connector.connect(host="142.93.109.128", user="aau", passwd="2387AXumK52aeaSA")
+fetch_db = mysql.connector.connect(host="142.93.109.128", user="aau", passwd="2387AXumK52aeaSA")
+insert_db = mysql.connector.connect(host="142.93.109.128", user="aau", passwd="2387AXumK52aeaSA")
 
 insert_cursor = insert_db.cursor()
 count_cursor = count_db.cursor()
 fetch_cursor = fetch_db.cursor()
 
 
-count_cursor.execute("SELECT COUNT(*) FROM %s.javascripts", dbname)
+count_cursor.execute("SELECT COUNT(*) FROM aau.javascripts")
 amount_of_js = count_cursor.fetchall()[0][0]
 count_cursor.close()
 count_db.close()
 
 
 def insert_vulnerability(id_vulnerability, vulnerability_description, vulnerability_severity):
-    sql = """REPLACE INTO %s.vulnerabilities (vulnerability_id, vulnerability, severity) VALUES (%s, %s, %s)"""
-    sql_params = (dbname, id_vulnerability, vulnerability_description, vulnerability_severity)
+    sql = """REPLACE INTO aau.vulnerabilities (vulnerability_id, vulnerability, severity) VALUES (%s, %s, %s)"""
+    sql_params = (id_vulnerability, vulnerability_description, vulnerability_severity)
     insert_cursor.execute(sql, sql_params)
     insert_db.commit()
 
 
 def insert_library(id_library, library_name, library_version):
-    sql = """REPLACE INTO %s.libraries (library_id, libname, version) VALUES (%s, %s, %s)"""
-    sql_params = (dbname, id_library, library_name, library_version)
+    sql = """REPLACE INTO aau.libraries (library_id, libname, version) VALUES (%s, %s, %s)"""
+    sql_params = (id_library, library_name, library_version)
     insert_cursor.execute(sql, sql_params)
     insert_db.commit()
 
 
 def insert_vulnerability_js_relation(id_library, id_vulnerability):
-    sql = """REPLACE INTO %s.libraryvulnerabilities (library_id, vulnerability_id) VALUES (%s, %s)"""
-    sql_params = (dbname, id_library, id_vulnerability)
+    sql = """REPLACE INTO aau.libraryvulnerabilities (library_id, vulnerability_id) VALUES (%s, %s)"""
+    sql_params = (id_library, id_vulnerability)
     insert_cursor.execute(sql, sql_params)
     insert_db.commit()
 
 
-def insert_js_library_relation(vulnerable_js_url, id_library):
-    sql = """REPLACE INTO %s.javascriptlibraries (js_url, library_id) VALUES (%s, %s)"""
-    sql_params = (dbname, vulnerable_js_url, id_library)
+def insert_js_library_relation(vulnerable_js_hash, id_library):
+    sql = """REPLACE INTO aau.javascriptlibraries (js_hash, library_id) VALUES (%s, %s)"""
+    sql_params = (vulnerable_js_hash, id_library)
     insert_cursor.execute(sql, sql_params)
     insert_db.commit()
 
 
-fetch_cursor.execute("SELECT * FROM %s.javascripts ORDER BY RAND()", dbname)
+fetch_cursor.execute("SELECT * FROM aau.javascripts ORDER BY RAND()")
 row = fetch_cursor.fetchone()
 
 progress_bar = ProgressBar(amount_of_js, bar_length=100)
