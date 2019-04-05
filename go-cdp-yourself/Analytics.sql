@@ -6,13 +6,6 @@ SELECT cookie_domain,
     ORDER BY Freq DESC
     LIMIT 5;
 
-
-SELECT *
-    FROM cookies
-    WHERE domain_id = 640085;
-
-
-
 -- Hvilke domains har flest cookies?
 SELECT domain, COUNT(c.domain_id)
     FROM domains
@@ -52,7 +45,7 @@ SELECT libname, COUNT(domains.domain_id) AS freq
     FROM libraries
     JOIN libraryvulnerabilities ON libraries.library_id = libraryvulnerabilities.library_id
     JOIN javascriptlibraries ON libraryvulnerabilities.library_id = javascriptlibraries.library_id
-    JOIN javascriptdomains ON javascriptlibraries.js_url = javascriptdomains.url
+    JOIN javascriptdomains ON javascriptlibraries.js_hash = javascriptdomains.scriptHash
     JOIN domains ON javascriptdomains.domain_id = domains.domain_id
     GROUP BY libname
     ORDER BY freq DESC
@@ -70,17 +63,17 @@ SELECT libraries.libname, libraries.version, COUNT(libraryvulnerabilities.librar
 SELECT domain, COUNT(domains.domain_id) AS freq
     FROM domains
     JOIN javascriptdomains on domains.domain_id = javascriptdomains.domain_id
-    JOIN javascriptlibraries on javascriptdomains.url = javascriptlibraries.js_url
+    JOIN javascriptlibraries on javascriptdomains.scriptHash = javascriptlibraries.js_hash
     JOIN libraryvulnerabilities on javascriptlibraries.library_id = libraryvulnerabilities.library_id
     GROUP BY domains.domain_id, domains.domain_id
     ORDER BY freq DESC
-    LIMIT 5; -- ikke testet. kan først testes når de nye tabeller udfyldes
+    LIMIT 5; -- SKRIVER FØRSTEPLADSEN 2 GANGE!
 
 -- Hvilke domains har flest kendte unikke vulnerabilities?
 SELECT domain, COUNT(DISTINCT libraryvulnerabilities.vulnerability_id) AS freq
     FROM domains
     JOIN javascriptdomains on domains.domain_id = javascriptdomains.domain_id
-    JOIN javascriptlibraries on javascriptdomains.url = javascriptlibraries.js_url
+    JOIN javascriptlibraries on javascriptdomains.scriptHash = javascriptlibraries.js_hash
     JOIN libraryvulnerabilities on javascriptlibraries.library_id = libraryvulnerabilities.library_id
     GROUP BY domains.domain_id, domains.domain_id
     ORDER BY freq DESC;
@@ -97,22 +90,18 @@ SELECT vulnerability_id,
 SELECT domain, SUM(CASE WHEN vulnerabilities.severity >= 3 THEN 1 ELSE 0 END) AS SevFreq
     FROM domains
     JOIN javascriptdomains on domains.domain_id = javascriptdomains.domain_id
-    JOIN javascriptlibraries on javascriptdomains.url = javascriptlibraries.js_url
+    JOIN javascriptlibraries on javascriptdomains.scriptHash = javascriptlibraries.js_hash
     JOIN libraryvulnerabilities on javascriptlibraries.library_id = libraryvulnerabilities.library_id
     JOIN vulnerabilities on libraryvulnerabilities.vulnerability_id = vulnerabilities.vulnerability_id
     GROUP BY domains.domain_id, vulnerabilities.severity
     ORDER BY SevFreq DESC
-    LIMIT 5; -- ikke testet. kan først testes når de nye tabeller udfyldes
+    LIMIT 5;
 
 -- Hvilke libraries har vi fundet som ikke har vulnerabilities?
 SELECT libname, version
     FROM libraries
     WHERE library_id NOT IN
       (SELECT library_id FROM libraryvulnerabilities);
-
--- Hvor mange procent har en eller anden form for vulnerability?
-SELECT (COUNT(DISTINCT vulnerabledomains.domain) / (COUNT(domains.domain_id)-4222)) * 100 VulnPct
-FROM vulnerabledomains, domains;
 
 -- Hvor mange sider giver ingen data
 SELECT domain
