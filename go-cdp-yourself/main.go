@@ -202,7 +202,7 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 	}
 
 	// Create the Navigate arguments with the optional Referrer field set.
-	navArgs := page.NewNavigateArgs("https://" + domain.domain)
+	navArgs := page.NewNavigateArgs("http://" + domain.domain)
 	nav, err := c.Page.Navigate(ctx, navArgs)
 	if err != nil {
 		log.Print(err)
