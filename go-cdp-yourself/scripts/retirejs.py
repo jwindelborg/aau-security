@@ -36,28 +36,28 @@ count_db.close()
 
 
 def insert_vulnerability(id_vulnerability, vulnerability_description, vulnerability_severity):
-    sql = """REPLACE INTO aau.vulnerabilities (vulnerability_id, vulnerability, severity) VALUES (%s, %s, %s)"""
+    sql = """REPLACE INTO aau.vulnerabilities (vulnerability_id, vulnerability, severity, discovered) VALUES (%s, %s, %s, NOW())"""
     sql_params = (id_vulnerability, vulnerability_description, vulnerability_severity)
     insert_cursor.execute(sql, sql_params)
     insert_db.commit()
 
 
 def insert_library(id_library, library_name, library_version):
-    sql = """REPLACE INTO aau.libraries (library_id, libname, version) VALUES (%s, %s, %s)"""
+    sql = """REPLACE INTO aau.libraries (library_id, libname, version, library_tagged) VALUES (%s, %s, %s, NOW())"""
     sql_params = (id_library, library_name, library_version)
     insert_cursor.execute(sql, sql_params)
     insert_db.commit()
 
 
 def insert_vulnerability_js_relation(id_library, id_vulnerability):
-    sql = """REPLACE INTO aau.libraryvulnerabilities (library_id, vulnerability_id) VALUES (%s, %s)"""
+    sql = """REPLACE INTO aau.libraryvulnerabilities (library_id, vulnerability_id, vulnerability_added) VALUES (%s, %s, NOW())"""
     sql_params = (id_library, id_vulnerability)
     insert_cursor.execute(sql, sql_params)
     insert_db.commit()
 
 
 def insert_js_library_relation(vulnerable_js_hash, id_library):
-    sql = """REPLACE INTO aau.javascriptlibraries (js_hash, library_id) VALUES (%s, %s)"""
+    sql = """REPLACE INTO aau.javascriptlibraries (js_hash, library_id, library_identified_time) VALUES (%s, %s, NOW())"""
     sql_params = (vulnerable_js_hash, id_library)
     insert_cursor.execute(sql, sql_params)
     insert_db.commit()
