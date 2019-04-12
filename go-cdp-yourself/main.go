@@ -26,7 +26,7 @@ import (
 )
 
 var connString = "aau:2387AXumK52aeaSA@tcp(142.93.109.128:3306)/"
-var siteWorstCase = 80*time.Second
+var siteWorstCase = 100*time.Second
 var queueReserved = 10
 
 type Domain struct {
@@ -84,7 +84,7 @@ func main() {
 			log.Printf("Doing domain: " + domain.domain)
 			doDomain(domain, port, channel)
 		}
-		domainVisitHistory(workerName)
+		//domainVisitHistory(workerName)
 	}
 	log.Printf("No more domains to process!")
 	channel <- "done"
@@ -191,7 +191,7 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 		return dwarf.VoidType{}
 	}
 
-	// Clean up
+	//Clean up
 	err = c.Network.ClearBrowserCache(ctx)
 	if err != nil {
 		log.Print(err)
@@ -290,7 +290,7 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 			}
 		}
 		if theScript.hash != "" {
-			javaScriptToDB(domain, theScript)
+			//javaScriptToDB(domain, theScript)
 		} else {
 			log.Printf("Hash not sat for JS; the script is probably not there")
 		}
@@ -304,16 +304,18 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 	}
 
 	cookiesLst := getAllCookies.Cookies
-	for _, cookie := range cookiesLst {
-		tmpCookie := DomainCookie {
-			name:     cookie.Name,
-			domain:   cookie.Domain,
-			expires:  cookie.Expires,
-			httpOnly: boolToInt(cookie.HTTPOnly),
-			secure:   boolToInt(cookie.Secure),
-			value:    cookie.Value,
+	if false {
+		for _, cookie := range cookiesLst {
+			tmpCookie := DomainCookie {
+				name:     cookie.Name,
+				domain:   cookie.Domain,
+				expires:  cookie.Expires,
+				httpOnly: boolToInt(cookie.HTTPOnly),
+				secure:   boolToInt(cookie.Secure),
+				value:    cookie.Value,
+			}
+			cookieToDB(domain, tmpCookie)
 		}
-		cookieToDB(domain, tmpCookie)
 	}
 
 	return dwarf.VoidType{}
@@ -385,7 +387,8 @@ func loadDomainQueue(workerName string) []Domain {
 		log.Print(err)
 	}
 
-	lockstmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) LIMIT ?;`
+	//lockstmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) LIMIT ?;`
+	lockstmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains ORDER BY rand() LIMIT ?;`
 	_, err = db.Exec(lockstmt, workerName, queueReserved)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
