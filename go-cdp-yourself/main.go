@@ -5,14 +5,12 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"debug/dwarf"
-	"encoding/hex"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/mafredri/cdp"
 	"github.com/mafredri/cdp/devtool"
 	"github.com/mafredri/cdp/protocol/dom"
 	"github.com/mafredri/cdp/protocol/page"
 	"github.com/mafredri/cdp/rpcc"
-	"golang.org/x/crypto/sha3"
 	_ "golang.org/x/crypto/sha3"
 	"io/ioutil"
 	_ "io/ioutil"
@@ -29,84 +27,41 @@ var connString = "aau:2387AXumK52aeaSA@tcp(142.93.109.128:3306)/"
 var siteWorstCase = 100*time.Second
 var queueReserved = 10
 
-type Domain struct {
-	domain string
-	id     int
-}
-
-type DomainCookie struct {
-	name     string
-	domain   string
-	value    string
-	expires  float64
-	httpOnly int
-	secure   int
-}
-
-type JavaScript struct {
-	script     string
-	hash       string
-	url        string
-	isExternal bool
-}
-
 func main() {
-	var dbName string
 	channel := make(chan string)
-	if len(os.Args) < 4 { // TODO: More input validation!
-		err := "First parameter the DB\n Second parameter the port of the chromeDP (often 9222)\nThird parameter the worker name"
-		log.Fatal(err)
-	}
-	if os.Args[1] == "--alexa" {
-		dbName = "alexaDB"
-	} else if os.Args[1] == "--dk" {
-		dbName = "aau"
-	} else if os.Args[1] == "--nidan" {
-		dbName = "nidan"
-	} else {
-		err := "How about trying an argument that actually exists?"
-		log.Fatal(err)
-	}
-	connString += dbName
-	port := os.Args[2]
-	workerName := os.Args[3]
-	go startAndHandleChrome(port, channel)
+
+	options := argParse(os.Args)
+
+	connString += options.dbName
+	go startAndHandleChrome(options.port, channel)
 	time.Sleep(1 * time.Second)
 	finished := false
 
-	go runServer()
+	if options.doPB {
+		go runServer()
+	}
 
 	for !finished {
-		domains := loadDomainQueue(workerName)
+		domains := loadDomainQueue(options.worker)
 		if len(domains) <= 0 {
 			finished = true
 			continue
 		}
 		for _, domain := range domains {
 			log.Printf("Doing domain: " + domain.domain)
-			doDomain(domain, port, channel)
+			doDomain(domain, options.port, channel, options)
 		}
-		//domainVisitHistory(workerName)
+		if options.doScan {
+			domainVisitHistory(options.worker)
+		}
 	}
 	log.Printf("No more domains to process!")
 	channel <- "done"
 }
 
-func runServer() {
-	http.HandleFunc("/TrackingCookie/", privacyBadgerCookie)
-	http.HandleFunc("/BlockDomain/", privacyBadgerDomain)
-	http.HandleFunc("/OriginMultipleTrack/", privacyBadgerMultipleTrack)
-	http.HandleFunc("/TrackingCookieTooHigh/", privacyBadgerCookieTooHigh)
-	http.HandleFunc("/strike/", privacyBadgerStrike)
-
-
-	if err := http.ListenAndServe(":9000", nil); err != nil {
-		panic(err)
-	}
-}
-
 func startAndHandleChrome(port string, channel chan string) {
 
+	// xvfb-run google-chrome-stable --load-extension=~/Code/privacybadger/src/ --remote-debugging-port=9222 --disable-gpu
 	cmd := exec.Command("google-chrome-stable", "--headless", "--remote-debugging-port=" + port, "--disable-gpu")
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
@@ -118,7 +73,6 @@ func startAndHandleChrome(port string, channel chan string) {
 			time.Sleep(3 * time.Second)
 			continue
 		case "fix":
-			// Kill it:
 			err := cmd.Process.Signal(syscall.SIGTERM)
 			if err != nil {
 				log.Fatal("failed to kill process: ", err)
@@ -149,7 +103,7 @@ func startAndHandleChrome(port string, channel chan string) {
 
 }
 
-func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
+func doDomain(domain Domain, port string, channel chan string, options options) dwarf.VoidType {
 
 	checkChrome := false
 	for !checkChrome {
@@ -187,7 +141,7 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 		log.Print(err)
 		return dwarf.VoidType{}
 	}
-	defer conn.Close() // Leaving connections open will leak memory.
+	defer conn.Close()
 
 	c := cdp.NewClient(conn)
 
@@ -218,7 +172,7 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 
 	// Create the Navigate arguments with the optional Referrer field set.
 	navArgs := page.NewNavigateArgs("http://" + domain.domain)
-	nav, err := c.Page.Navigate(ctx, navArgs)
+	_, err = c.Page.Navigate(ctx, navArgs)
 	if err != nil {
 		log.Print(err)
 		return dwarf.VoidType{}
@@ -227,10 +181,6 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 	if _, err = domContent.Recv(); err != nil {
 		log.Print(err)
 		return dwarf.VoidType{}
-	}
-
-	if false { // I want to remember the option exists
-		log.Printf("Page loaded with frame ID: %s\n", nav.FrameID)
 	}
 
 	// Fetch the document root node. We can pass nil here
@@ -305,7 +255,9 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 			}
 		}
 		if theScript.hash != "" {
-			//javaScriptToDB(domain, theScript)
+			if options.doScan {
+				javaScriptToDB(domain, theScript)
+			}
 		} else {
 			log.Printf("Hash not sat for JS; the script is probably not there")
 		}
@@ -319,69 +271,17 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 	}
 
 	cookiesLst := getAllCookies.Cookies
-	if false {
+	if options.doScan {
 		for _, cookie := range cookiesLst {
-			tmpCookie := DomainCookie {
+			cookieToDB(domain, DomainCookie {
 				name:     cookie.Name,
 				domain:   cookie.Domain,
 				expires:  cookie.Expires,
 				httpOnly: boolToInt(cookie.HTTPOnly),
 				secure:   boolToInt(cookie.Secure),
 				value:    cookie.Value,
-			}
-			cookieToDB(domain, tmpCookie)
+			})
 		}
-	}
-
-	return dwarf.VoidType{}
-}
-
-func javaScriptToDB(domain Domain, script JavaScript) dwarf.VoidType {
-	db, err := sql.Open("mysql", connString)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// JavaScript Save
-	sqlJs := `INSERT IGNORE INTO javascripts (script, scriptHash, javascriptDiscovered) VALUES (?, ?, NOW());`
-	_, err = db.Exec(sqlJs, script.script, script.hash)
-	if err != nil {
-		log.Printf("javaScriptToDB: Error inserting JS into DB for external script: " + script.hash)
-		log.Print(err)
-	}
-	// JavaScript Domain save
-	sqlJsRel := `INSERT IGNORE INTO javascriptdomains (domain_id, scriptHash, url, is_external) VALUES (?, ?, ?, ?);`
-	_, err = db.Exec(sqlJsRel, domain.id, script.hash, script.url, script.isExternal)
-	if err != nil {
-		log.Printf("javaScriptToDB: Could not insert JS relation into DB for external script: " + script.hash)
-		log.Print(err)
-	}
-
-	err = db.Close()
-	if err != nil {
-		log.Print(err)
-		log.Fatal("javaScriptToDB: DB conn could not be closed")
-	}
-	return dwarf.VoidType{}
-}
-
-func cookieToDB(domain Domain, cookie DomainCookie) dwarf.VoidType {
-	db, err := sql.Open("mysql", connString)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	sqlInsertCookie := `INSERT IGNORE INTO cookies (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only, cookie_added) VALUES (?, ?, ?, ?, ?, ?, ?, now());`
-	_, err = db.Exec(sqlInsertCookie, domain.id, cookie.name, cookie.value, cookie.domain, cookie.expires, cookie.secure, cookie.httpOnly)
-	if err != nil {
-		log.Printf("cookieToDB: Could not save cookie")
-		log.Print(err)
-	}
-
-	err = db.Close()
-	if err != nil {
-		log.Print(err)
-		log.Fatal("cookieToDB: db conn could not be closed")
 	}
 
 	return dwarf.VoidType{}
@@ -395,16 +295,16 @@ func loadDomainQueue(workerName string) []Domain {
 		log.Fatal(err)
 	}
 
-	cleanstmt := `DELETE FROM lockeddomains WHERE worker = ?`
-	_, err = db.Exec(cleanstmt, workerName)
+	cleanStmt := `DELETE FROM lockeddomains WHERE worker = ?`
+	_, err = db.Exec(cleanStmt, workerName)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not delete from locked")
 		log.Print(err)
 	}
 
-	//lockstmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) LIMIT ?;`
-	lockstmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains ORDER BY rand() LIMIT ?;`
-	_, err = db.Exec(lockstmt, workerName, queueReserved)
+	//lockStmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) LIMIT ?;`
+	lockStmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains ORDER BY rand() LIMIT ?;`
+	_, err = db.Exec(lockStmt, workerName, queueReserved)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
 		log.Print(err)
@@ -425,12 +325,11 @@ func loadDomainQueue(workerName string) []Domain {
 		if err := rows.Scan(&id, &domain); err != nil {
 			log.Fatal(err)
 		}
-		tmpDomain := Domain {
+
+		domains = append(domains, Domain{
 			id:     id,
 			domain: strings.TrimSpace(domain),
-		}
-
-		domains = append(domains, tmpDomain)
+		})
 	}
 	err = rows.Close()
 	if err != nil {
@@ -442,159 +341,6 @@ func loadDomainQueue(workerName string) []Domain {
 		log.Print(err)
 		log.Fatal("LoadDomainsDB: Could not close DB conn")
 	}
-	cancel()
+	cancel() // Can we just defer?
 	return domains
-}
-
-func prepareScriptURL(domain string, url string) string {
-	url = strings.TrimSpace(url)
-	if strings.Contains(url, "\n") {
-		url = strings.Trim(url, "\n")
-	}
-
-	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url,"https://") {
-		return url
-	} else if strings.HasPrefix(url,"//") {
-		return "http://" + url[2:]
-	} else {
-		if strings.HasPrefix(url, "/") {
-			return "http://" + domain + url
-		} else {
-			return "http://" + domain + "/" + url
-		}
-	}
-}
-
-func boolToInt(bo bool) int {
-	if bo {
-		return 1
-	} else {
-		return 0
-	}
-}
-
-func sha3FromStr(str string) string {
-	shaBytes := sha3.Sum256([]byte(str))
-	return hex.EncodeToString(shaBytes[:])
-}
-
-func domainVisitHistory(workerName string) dwarf.VoidType {
-	db, err := sql.Open("mysql", connString)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	stmt := `INSERT INTO domainvisithistory (domain_id, worker, time_processed) SELECT domain_id, ?, NOW() FROM lockeddomains WHERE worker = ?;`
-	_, err = db.Exec(stmt, workerName, workerName)
-	if err != nil {
-		log.Printf("domainVisitHistory: Could not update history")
-		log.Print(err)
-	}
-	stmt2 := `DELETE FROM lockeddomains WHERE worker = ?;`
-	_, err = db.Exec(stmt2, workerName)
-	if err != nil {
-		log.Printf("domainVisitHistory: Could not delete locks")
-		log.Print(err)
-	}
-
-	err = db.Close()
-	if err != nil {
-		log.Print(err)
-		log.Fatal("LoadDomainsDB: Could not close DB conn")
-	}
-
-	return dwarf.VoidType{}
-}
-
-func putdomainstodb(filename string) dwarf.VoidType  {
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	lines := strings.Split(string(content), "\n")
-
-	db, err := sql.Open("mysql", connString)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, line := range lines {
-		sqlInsertCookie := `INSERT INTO domains (domain, title) VALUES (?, ?);`
-		_, err = db.Exec(sqlInsertCookie, line, "")
-		if err != nil {
-			log.Printf("Shit happens")
-		}
-	}
-
-	return dwarf.VoidType{}
-}
-
-func privacyBadgerCookie(w http.ResponseWriter, r *http.Request) {
-	message := r.URL.Path
-	message = strings.TrimPrefix(message, "/TrackingCookie/")
-	message = "Test cookie " + message
-
-	log.Print(message)
-
-	message = "ok"
-	_, err := w.Write([]byte(message))
-	if err != nil {
-		log.Print(err)
-	}
-}
-
-func privacyBadgerMultipleTrack(w http.ResponseWriter, r *http.Request) {
-	message := r.URL.Path
-	message = strings.TrimPrefix(message, "/OriginMultipleTrack/")
-	message = "Test multiple " + message
-
-	log.Print(message)
-
-	message = "ok"
-	_, err := w.Write([]byte(message))
-	if err != nil {
-		log.Print(err)
-	}
-}
-
-func privacyBadgerDomain(w http.ResponseWriter, r *http.Request) {
-	message := r.URL.Path
-	message = strings.TrimPrefix(message, "/BlockDomain/")
-	message = "Test domain " + message
-
-	log.Print(message)
-
-	message = "ok"
-	_, err := w.Write([]byte(message))
-	if err != nil {
-		log.Print(err)
-	}
-}
-
-func privacyBadgerCookieTooHigh(w http.ResponseWriter, r *http.Request) {
-	message := r.URL.Path
-	message = strings.TrimPrefix(message, "/TrackingCookieTooHigh/")
-	message = "Test too high " + message
-
-	log.Print(message)
-
-	message = "ok"
-	_, err := w.Write([]byte(message))
-	if err != nil {
-		log.Print(err)
-	}
-}
-
-func privacyBadgerStrike(w http.ResponseWriter, r *http.Request) {
-	message := r.URL.Path
-	message = strings.TrimPrefix(message, "/strike/")
-	message = "Strike " + message
-
-	log.Print(message)
-
-	message = "ok"
-	_, err := w.Write([]byte(message))
-	if err != nil {
-		log.Print(err)
-	}
 }
