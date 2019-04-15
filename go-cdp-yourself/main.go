@@ -74,6 +74,8 @@ func main() {
 	time.Sleep(1 * time.Second)
 	finished := false
 
+	go runServer()
+
 	for !finished {
 		domains := loadDomainQueue(workerName)
 		if len(domains) <= 0 {
@@ -88,6 +90,19 @@ func main() {
 	}
 	log.Printf("No more domains to process!")
 	channel <- "done"
+}
+
+func runServer() {
+	http.HandleFunc("/TrackingCookie/", privacyBadgerCookie)
+	http.HandleFunc("/BlockDomain/", privacyBadgerDomain)
+	http.HandleFunc("/OriginMultipleTrack/", privacyBadgerMultipleTrack)
+	http.HandleFunc("/TrackingCookieTooHigh/", privacyBadgerCookieTooHigh)
+	http.HandleFunc("/strike/", privacyBadgerStrike)
+
+
+	if err := http.ListenAndServe(":9000", nil); err != nil {
+		panic(err)
+	}
 }
 
 func startAndHandleChrome(port string, channel chan string) {
@@ -191,7 +206,7 @@ func doDomain(domain Domain, port string, channel chan string) dwarf.VoidType {
 		return dwarf.VoidType{}
 	}
 
-	//Clean up
+	// Clean up
 	err = c.Network.ClearBrowserCache(ctx)
 	if err != nil {
 		log.Print(err)
@@ -512,4 +527,74 @@ func putdomainstodb(filename string) dwarf.VoidType  {
 	}
 
 	return dwarf.VoidType{}
+}
+
+func privacyBadgerCookie(w http.ResponseWriter, r *http.Request) {
+	message := r.URL.Path
+	message = strings.TrimPrefix(message, "/TrackingCookie/")
+	message = "Test cookie " + message
+
+	log.Print(message)
+
+	message = "ok"
+	_, err := w.Write([]byte(message))
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+func privacyBadgerMultipleTrack(w http.ResponseWriter, r *http.Request) {
+	message := r.URL.Path
+	message = strings.TrimPrefix(message, "/OriginMultipleTrack/")
+	message = "Test multiple " + message
+
+	log.Print(message)
+
+	message = "ok"
+	_, err := w.Write([]byte(message))
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+func privacyBadgerDomain(w http.ResponseWriter, r *http.Request) {
+	message := r.URL.Path
+	message = strings.TrimPrefix(message, "/BlockDomain/")
+	message = "Test domain " + message
+
+	log.Print(message)
+
+	message = "ok"
+	_, err := w.Write([]byte(message))
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+func privacyBadgerCookieTooHigh(w http.ResponseWriter, r *http.Request) {
+	message := r.URL.Path
+	message = strings.TrimPrefix(message, "/TrackingCookieTooHigh/")
+	message = "Test too high " + message
+
+	log.Print(message)
+
+	message = "ok"
+	_, err := w.Write([]byte(message))
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+func privacyBadgerStrike(w http.ResponseWriter, r *http.Request) {
+	message := r.URL.Path
+	message = strings.TrimPrefix(message, "/strike/")
+	message = "Strike " + message
+
+	log.Print(message)
+
+	message = "ok"
+	_, err := w.Write([]byte(message))
+	if err != nil {
+		log.Print(err)
+	}
 }
