@@ -21,11 +21,9 @@ func runServer() {
 
 func privacyBadgerCookie(w http.ResponseWriter, r *http.Request) {
 	// TODO: Flag cookie
-	message := r.URL.Path
-	message = strings.TrimPrefix(message, "/TrackingCookie/")
-	message = "Test cookie " + message
+	message := strings.TrimPrefix(r.URL.Path, "/TrackingCookie/")
 
-	log.Print(message)
+	privacyBadgerToDB(curDomID, 0, message)
 
 	message = "ok"
 	_, err := w.Write([]byte(message))
@@ -35,11 +33,9 @@ func privacyBadgerCookie(w http.ResponseWriter, r *http.Request) {
 }
 
 func privacyBadgerMultipleTrack(w http.ResponseWriter, r *http.Request) {
-	message := r.URL.Path
-	message = strings.TrimPrefix(message, "/OriginMultipleTrack/")
-	message = "Test multiple " + message
+	message := strings.TrimPrefix(r.URL.Path, "/OriginMultipleTrack/")
 
-	log.Print(message)
+	privacyBadgerToDB(curDomID, 1, message)
 
 	message = "ok"
 	_, err := w.Write([]byte(message))
@@ -49,11 +45,9 @@ func privacyBadgerMultipleTrack(w http.ResponseWriter, r *http.Request) {
 }
 
 func privacyBadgerDomain(w http.ResponseWriter, r *http.Request) {
-	message := r.URL.Path
-	message = strings.TrimPrefix(message, "/BlockDomain/")
-	message = "Test domain " + message
+	message := strings.TrimPrefix(r.URL.Path, "/BlockDomain/")
 
-	log.Print(message)
+	privacyBadgerToDB(curDomID, 1, message)
 
 	message = "ok"
 	_, err := w.Write([]byte(message))
@@ -64,11 +58,9 @@ func privacyBadgerDomain(w http.ResponseWriter, r *http.Request) {
 
 func privacyBadgerCookieTooHigh(w http.ResponseWriter, r *http.Request) {
 	// TODO: Flag cookie
-	message := r.URL.Path
-	message = strings.TrimPrefix(message, "/TrackingCookieTooHigh/")
-	message = "Test too high " + message
+	message := strings.TrimPrefix(r.URL.Path, "/TrackingCookieTooHigh/")
 
-	log.Print(message)
+	privacyBadgerToDB(curDomID, 0, message)
 
 	message = "ok"
 	_, err := w.Write([]byte(message))
@@ -82,7 +74,7 @@ func privacyBadgerStrike(w http.ResponseWriter, r *http.Request) {
 	message = strings.TrimPrefix(message, "/strike/")
 	message = "Strike " + message
 
-	log.Print(message)
+	log.Print(message) // TODO: Not implemented in DB yet
 
 	message = "ok"
 	_, err := w.Write([]byte(message))

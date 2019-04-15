@@ -40,8 +40,8 @@ func cookieToDB(domain Domain, cookie DomainCookie) dwarf.VoidType {
 		log.Fatal(err)
 	}
 
-	sqlInsertCookie := `INSERT IGNORE INTO cookies (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only, cookie_added) VALUES (?, ?, ?, ?, ?, ?, ?, now());`
-	_, err = db.Exec(sqlInsertCookie, domain.id, cookie.name, cookie.value, cookie.domain, cookie.expires, cookie.secure, cookie.httpOnly)
+	s := `INSERT IGNORE INTO cookies (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only, cookie_added) VALUES (?, ?, ?, ?, ?, ?, ?, now());`
+	_, err = db.Exec(s, domain.id, cookie.name, cookie.value, cookie.domain, cookie.expires, cookie.secure, cookie.httpOnly)
 	if err != nil {
 		log.Printf("cookieToDB: Could not save cookie")
 		log.Print(err)
@@ -79,6 +79,28 @@ func domainVisitHistory(workerName string) dwarf.VoidType {
 	if err != nil {
 		log.Print(err)
 		log.Fatal("domainVisitHistory: Could not close DB conn")
+	}
+
+	return dwarf.VoidType{}
+}
+
+func privacyBadgerToDB(topDomainID int, isRed int, domain string) dwarf.VoidType {
+	db, err := sql.Open("mysql", connString)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	s := `INSERT IGNORE INTO privacyBadger (domain_id, is_red, concerning, accessed) VALUES (?, ?, ?, now());`
+	_, err = db.Exec(s, topDomainID, isRed, domain)
+	if err != nil {
+		log.Printf("privacyBadgerToDB: Could not save cookie")
+		log.Print(err)
+	}
+
+	err = db.Close()
+	if err != nil {
+		log.Print(err)
+		log.Fatal("privacyBadgerToDB: db conn could not be closed")
 	}
 
 	return dwarf.VoidType{}

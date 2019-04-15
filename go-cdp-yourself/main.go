@@ -26,6 +26,7 @@ import (
 var connString = "aau:2387AXumK52aeaSA@tcp(142.93.109.128:3306)/"
 var siteWorstCase = 100*time.Second
 var queueReserved = 10
+var curDomID = 0
 
 func main() {
 	channel := make(chan string)
@@ -49,6 +50,7 @@ func main() {
 		}
 		for _, domain := range domains {
 			log.Printf("Doing domain: " + domain.domain)
+			curDomID = domain.id
 			doDomain(domain, options.port, channel, options)
 		}
 		if options.doScan {
