@@ -22,9 +22,13 @@ type JavaScript struct {
 }
 
 type options struct {
-	dbName string
-	port   string
-	worker string
-	doScan bool
-	doPB   bool
+	dbName  string
+	port    string
+	worker  string
+	doScan  bool
+	doPB    bool
+	scanOld bool
+	random  bool
+	quite   bool
+	verbose bool
 }

@@ -17,6 +17,8 @@ func argParse(args []string) options {
 	options.doPB = true
 	options.scanOld = false
 	options.random = false
+	options.quite = false
+	options.verbose = true
 
 	for i, arg := range args {
 		switch arg {

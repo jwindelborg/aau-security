@@ -34,12 +34,12 @@ func main() {
 	options := argParse(os.Args)
 
 	connString += options.dbName
-	go startAndHandleChrome(options.port, channel)
+	go startAndHandleChrome(options.port, channel, options)
 	time.Sleep(1 * time.Second)
 	finished := false
 
 	if options.doPB {
-		go runServer()
+		go runServer(options)
 	}
 
 	for !finished {
@@ -49,25 +49,26 @@ func main() {
 			continue
 		}
 		for _, domain := range domains {
-			log.Printf("Doing domain: " + domain.domain)
+			if !options.quite { log.Printf("Doing domain: " + domain.domain) }
 			curDomID = domain.id
 			doDomain(domain, options.port, channel, options)
 		}
 		if options.doScan {
-			domainVisitHistory(options.worker)
+			domainVisitHistory(options.worker, options)
 		}
 	}
-	log.Printf("No more domains to process!")
+	if !options.quite { log.Printf("No more domains to process!") }
 	channel <- "done"
 }
 
-func startAndHandleChrome(port string, channel chan string) {
+func startAndHandleChrome(port string, channel chan string, opt options) {
 
 	// xvfb-run google-chrome-stable --load-extension=~/Code/privacybadger/src/ --remote-debugging-port=9222 --disable-gpu
 	cmd := exec.Command("google-chrome-stable", "--headless", "--remote-debugging-port=" + port, "--disable-gpu")
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
+	if opt.verbose { log.Print("Chrome started") }
 
 	for true {
 		switch stmt := <-channel; stmt {
@@ -85,7 +86,7 @@ func startAndHandleChrome(port string, channel chan string) {
 			}
 
 			if err := cmd.Start(); err != nil {
-				log.Print(err)
+				if opt.verbose { log.Print(err) }
 			}
 			channel <- "fixed"
 		case "done":
@@ -112,13 +113,15 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 		chromeUp, err := http.Get("http://127.0.0.1:" + port)
 		if err != nil {
 			channel <- "fix"
-			log.Printf("Chrome not up, let's wait for a moment")
-			log.Print(err)
+			if opt.verbose {
+				log.Printf("Chrome not up, let's wait for a moment")
+				log.Print(err)
+			}
 			time.Sleep(10*time.Second)
 			continue
 		} else if chromeUp.StatusCode != 200 {
 			channel <- "fix"
-			log.Printf("Chrome not up, let's wait for status code 200")
+			if opt.verbose { log.Printf("Chrome not up, let's wait for status code 200")	}
 			time.Sleep(10*time.Second)
 			continue
 		}
@@ -133,14 +136,14 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 	if err != nil {
 		pt, err = devTools.Create(ctx)
 		if err != nil {
-			log.Print(err)
+			if opt.verbose { log.Print(err) }
 			return dwarf.VoidType{}
 		}
 	}
 
 	conn, err := rpcc.DialContext(ctx, pt.WebSocketDebuggerURL)
 	if err != nil {
-		log.Print(err)
+		if opt.verbose { log.Print(err) }
 		return dwarf.VoidType{}
 	}
 	defer conn.Close()
@@ -150,7 +153,7 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 	// Open a DOMContentEventFired client to buffer this event.
 	domContent, err := c.Page.DOMContentEventFired(ctx)
 	if err != nil {
-		log.Print(err)
+		if opt.verbose { log.Print(err) }
 		return dwarf.VoidType{}
 	}
 	defer domContent.Close()
@@ -158,30 +161,30 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 	// Enable events on the Page domain, it's often preferable to create
 	// event clients before enabling events so that we don't miss any.
 	if err = c.Page.Enable(ctx); err != nil {
-		log.Print(err)
+		if opt.verbose { log.Print(err) }
 		return dwarf.VoidType{}
 	}
 
 	// Clean up
 	err = c.Network.ClearBrowserCache(ctx)
 	if err != nil {
-		log.Print(err)
+		if opt.verbose { log.Print(err) }
 	}
 	err = c.Network.ClearBrowserCookies(ctx)
 	if err != nil {
-		log.Print(err)
+		if opt.verbose { log.Print(err) }
 	}
 
 	// Create the Navigate arguments with the optional Referrer field set.
 	navArgs := page.NewNavigateArgs("http://" + domain.domain)
 	_, err = c.Page.Navigate(ctx, navArgs)
 	if err != nil {
-		log.Print(err)
+		if opt.verbose { log.Print(err) }
 		return dwarf.VoidType{}
 	}
 
 	if _, err = domContent.Recv(); err != nil {
-		log.Print(err)
+		if opt.verbose { log.Print(err) }
 		return dwarf.VoidType{}
 	}
 
@@ -189,13 +192,13 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 	// since this method only takes optional arguments.
 	doc, err := c.DOM.GetDocument(ctx, nil)
 	if err != nil {
-		log.Print(err)
+		if opt.verbose { log.Print(err) }
 		return dwarf.VoidType{}
 	}
 
 	scriptIDs, err := c.DOM.QuerySelectorAll(ctx, dom.NewQuerySelectorAllArgs(doc.Root.NodeID, "script"))
 	if err != nil {
-		log.Println(err)
+		if opt.verbose { log.Println(err) }
 		return dwarf.VoidType{}
 	}
 
@@ -217,21 +220,27 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 				http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 				response, err := http.Get(scriptURL)
 				if err != nil {
-					log.Printf("doDomain: Could not fetch external script: " + scriptURL)
-					log.Print(err)
+					if opt.verbose {
+						log.Printf("doDomain: Could not fetch external script: " + scriptURL)
+						log.Print(err)
+					}
 					continue
 				}
 				if response.StatusCode >= 200 && response.StatusCode < 400 {
 					body, err := ioutil.ReadAll(response.Body)
 					if err != nil {
-						log.Printf("doDomain: Could not get response body for external script: " + scriptURL)
-						log.Print(err)
+						if opt.verbose {
+							log.Printf("doDomain: Could not get response body for external script: " + scriptURL)
+							log.Print(err)
+						}
 						continue
 					} else {
 						err := response.Body.Close()
 						if err != nil {
-							log.Printf("doDomain: There was an error closing body for external script: " + scriptURL)
-							log.Print(err)
+							if opt.verbose {
+								log.Printf("doDomain: There was an error closing body for external script: " + scriptURL)
+								log.Print(err)
+							}
 							continue
 						}
 						theScript.script = string(body)
@@ -258,16 +267,16 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 		}
 		if theScript.hash != "" {
 			if opt.doScan {
-				javaScriptToDB(domain, theScript)
+				javaScriptToDB(domain, theScript, opt)
 			}
 		} else {
-			log.Printf("Hash not sat for JS; the script is probably not there")
+			if opt.verbose { log.Printf("Hash not sat for JS; the script is probably not there") }
 		}
 
 	}
 
 	getAllCookies, err := cdp.Network.GetAllCookies(c.Network, ctx)
-	if err != nil {
+	if err != nil && opt.verbose {
 		log.Printf("Could not get cookies")
 		log.Print(err)
 	}
@@ -282,7 +291,7 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 				httpOnly: boolToInt(cookie.HTTPOnly),
 				secure:   boolToInt(cookie.Secure),
 				value:    cookie.Value,
-			})
+			}, opt)
 		}
 	}
 
@@ -299,7 +308,7 @@ func loadDomainQueue(workerName string, opt options) []Domain {
 
 	cleanStmt := `DELETE FROM lockeddomains WHERE worker = ?`
 	_, err = db.Exec(cleanStmt, workerName)
-	if err != nil {
+	if err != nil && opt.verbose {
 		log.Printf("LoadDomainQueue: Could not delete from locked")
 		log.Print(err)
 	}
@@ -317,7 +326,7 @@ func loadDomainQueue(workerName string, opt options) []Domain {
 		lockStmt += ` LIMIT ?;`
 	}
 	_, err = db.Exec(lockStmt, workerName, queueReserved)
-	if err != nil {
+	if err != nil && opt.verbose {
 		log.Printf("LoadDomainQueue: Could not lock domains")
 		log.Print(err)
 	}
