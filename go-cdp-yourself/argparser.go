@@ -18,10 +18,7 @@ func argParse(args []string) options {
 
 	for i, arg := range args {
 		switch arg {
-		case "--help":
-			fmt.Print(helpString)
-			os.Exit(0)
-		case "-h":
+		case "--help", "-h":
 			fmt.Print(helpString)
 			os.Exit(0)
 		case "--alexa":
