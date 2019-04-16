@@ -7,7 +7,7 @@ import (
 )
 
 func argParse(args []string) options {
-	var helpString = "Options for Nidan scanner:\n-h,--help\tThis\n-p [9222]\tPort default 9222\n-w [worker]\tWorker default $HOST\n--dk\t\tDefault DB\n--alexaDB\tAlexa DB\n--nidan\t\tNidan DB\n--no-scan\tDon't scan\n--no-pb\t\tNo Privacy Badger\n"
+	var helpString = "Options for Nidan scanner:\n-h,--help\tThis\n-p [9222]\tPort default 9222\n-w [worker]\tWorker default $HOST\n--dk\t\tDefault DB\n--alexaDB\tAlexa DB\n--nidan\t\tNidan DB\n--no-scan\tDon't scan\n--no-pb\t\tNo Privacy Badger\n--old\t\tScan already visited\n--random\tOrder queue random\n"
 	var options options
 
 	options.dbName = "aau"
@@ -15,6 +15,8 @@ func argParse(args []string) options {
 	options.worker, _ = os.Hostname()
 	options.doScan = true
 	options.doPB = true
+	options.scanOld = false
+	options.random = false
 
 	for i, arg := range args {
 		switch arg {
@@ -31,6 +33,10 @@ func argParse(args []string) options {
 			options.doScan = false
 		case "--no-pb":
 			options.doPB = false
+		case "--old":
+			options.scanOld = true
+		case "--random":
+			options.random = true
 		case "-p":
 			if len(args) > i {
 				options.port = args[i+1]

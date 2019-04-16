@@ -43,7 +43,7 @@ func main() {
 	}
 
 	for !finished {
-		domains := loadDomainQueue(options.worker)
+		domains := loadDomainQueue(options.worker, options)
 		if len(domains) <= 0 {
 			finished = true
 			continue
@@ -105,7 +105,7 @@ func startAndHandleChrome(port string, channel chan string) {
 
 }
 
-func doDomain(domain Domain, port string, channel chan string, options options) dwarf.VoidType {
+func doDomain(domain Domain, port string, channel chan string, opt options) dwarf.VoidType {
 
 	checkChrome := false
 	for !checkChrome {
@@ -257,7 +257,7 @@ func doDomain(domain Domain, port string, channel chan string, options options) 
 			}
 		}
 		if theScript.hash != "" {
-			if options.doScan {
+			if opt.doScan {
 				javaScriptToDB(domain, theScript)
 			}
 		} else {
@@ -273,7 +273,7 @@ func doDomain(domain Domain, port string, channel chan string, options options) 
 	}
 
 	cookiesLst := getAllCookies.Cookies
-	if options.doScan {
+	if opt.doScan {
 		for _, cookie := range cookiesLst {
 			cookieToDB(domain, DomainCookie {
 				name:     cookie.Name,
@@ -289,7 +289,7 @@ func doDomain(domain Domain, port string, channel chan string, options options) 
 	return dwarf.VoidType{}
 }
 
-func loadDomainQueue(workerName string) []Domain {
+func loadDomainQueue(workerName string, opt options) []Domain {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	db, err := sql.Open("mysql", connString)
@@ -304,8 +304,18 @@ func loadDomainQueue(workerName string) []Domain {
 		log.Print(err)
 	}
 
-	//lockStmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory) LIMIT ?;`
-	lockStmt := `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains ORDER BY rand() LIMIT ?;`
+	var lockStmt string
+	if opt.scanOld {
+		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains)`
+	} else {
+		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory)`
+	}
+
+	if opt.random {
+		lockStmt += ` ORDER BY rand() LIMIT ?;`
+	} else {
+		lockStmt += ` LIMIT ?;`
+	}
 	_, err = db.Exec(lockStmt, workerName, queueReserved)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
