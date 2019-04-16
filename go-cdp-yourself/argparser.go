@@ -38,13 +38,13 @@ func argParse(args []string) options {
 			if len(args) > i {
 				options.port = args[i+1]
 			} else {
-				log.Fatal("You are an idiot")
+				log.Fatal("You have as many braincells as you have port values")
 			}
 		case "-w":
 			if len(args) > i {
 				options.worker = args[i+1]
 			} else {
-				log.Fatal("You are an idiot")
+				log.Fatal("You have as many braincells as you have worker names")
 			}
 		}
 	}
