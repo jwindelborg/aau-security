@@ -7,7 +7,7 @@ import (
 )
 
 func argParse(args []string) options {
-	var helpString = "Options for Nidan scanner:\n-h,--help\tThis\n-p [9222]\tPort default 9222\n-w worker\tWorker default $HOST\n--dk\t\tDefault DB\n--alexaDB\tAlexa DB\n--nidan\t\tNidan DB\n--no-scan\tDon't scan\n--no-pb\t\tNo Privacy Badger\n"
+	var helpString = "Options for Nidan scanner:\n-h,--help\tThis\n-p [9222]\tPort default 9222\n-w [worker]\tWorker default $HOST\n--dk\t\tDefault DB\n--alexaDB\tAlexa DB\n--nidan\t\tNidan DB\n--no-scan\tDon't scan\n--no-pb\t\tNo Privacy Badger\n"
 	var options options
 
 	options.dbName = "aau"
