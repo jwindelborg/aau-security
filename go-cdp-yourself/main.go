@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-var connString = "aau:2387AXumK52aeaSA@tcp(142.93.109.128:3306)/"
+var connString = "aau:2387AXumK52aeaSA@tcp(142.93.109.128:3306)/aau"
 var siteWorstCase = 100*time.Second
 var queueReserved = 10
 var curDomID = 0
@@ -33,8 +33,7 @@ func main() {
 
 	options := argParse(os.Args)
 
-	connString += options.dbName
-	go startAndHandleChrome(options.port, channel, options)
+	go startAndHandleChrome(options.port, channel)
 	time.Sleep(1 * time.Second)
 	finished := false
 
@@ -57,18 +56,18 @@ func main() {
 			domainVisitHistory(options.worker, options)
 		}
 	}
-	if !options.quite { log.Printf("No more domains to process!") }
+	log.Printf("No more domains to process!")
 	channel <- "done"
 }
 
-func startAndHandleChrome(port string, channel chan string, opt options) {
+func startAndHandleChrome(port string, channel chan string) {
 
 	// xvfb-run chromium --load-extension=~/Code/privacybadger/src/ --remote-debugging-port=9222 --disable-gpu
 	cmd := exec.Command("chromium", "--headless", "--remote-debugging-port=" + port, "--disable-gpu")
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
-	if opt.verbose { log.Print("Chrome started") }
+	log.Print("Chrome started")
 
 	for true {
 		switch stmt := <-channel; stmt {
@@ -86,7 +85,7 @@ func startAndHandleChrome(port string, channel chan string, opt options) {
 			}
 
 			if err := cmd.Start(); err != nil {
-				if opt.verbose { log.Print(err) }
+				log.Print(err)
 			}
 			channel <- "fixed"
 		case "done":
@@ -106,22 +105,20 @@ func startAndHandleChrome(port string, channel chan string, opt options) {
 
 }
 
-func doDomain(domain Domain, port string, channel chan string, opt options) dwarf.VoidType {
+func doDomain(domain Domain, port string, channel chan string, options options) dwarf.VoidType {
 
 	checkChrome := false
 	for !checkChrome {
 		chromeUp, err := http.Get("http://127.0.0.1:" + port)
 		if err != nil {
 			channel <- "fix"
-			if opt.verbose {
-				log.Printf("Chrome not up, let's wait for a moment")
-				log.Print(err)
-			}
+			log.Printf("Chrome not up, let's wait for a moment")
+			log.Print(err)
 			time.Sleep(10*time.Second)
 			continue
 		} else if chromeUp.StatusCode != 200 {
 			channel <- "fix"
-			if opt.verbose { log.Printf("Chrome not up, let's wait for status code 200")	}
+			log.Printf("Chrome not up, let's wait for status code 200")
 			time.Sleep(10*time.Second)
 			continue
 		}
@@ -136,14 +133,14 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 	if err != nil {
 		pt, err = devTools.Create(ctx)
 		if err != nil {
-			if opt.verbose { log.Print(err) }
+			log.Print(err)
 			return dwarf.VoidType{}
 		}
 	}
 
 	conn, err := rpcc.DialContext(ctx, pt.WebSocketDebuggerURL)
 	if err != nil {
-		if opt.verbose { log.Print(err) }
+		log.Print(err)
 		return dwarf.VoidType{}
 	}
 	defer conn.Close()
@@ -153,7 +150,7 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 	// Open a DOMContentEventFired client to buffer this event.
 	domContent, err := c.Page.DOMContentEventFired(ctx)
 	if err != nil {
-		if opt.verbose { log.Print(err) }
+		log.Print(err)
 		return dwarf.VoidType{}
 	}
 	defer domContent.Close()
@@ -161,30 +158,30 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 	// Enable events on the Page domain, it's often preferable to create
 	// event clients before enabling events so that we don't miss any.
 	if err = c.Page.Enable(ctx); err != nil {
-		if opt.verbose { log.Print(err) }
+		log.Print(err)
 		return dwarf.VoidType{}
 	}
 
 	// Clean up
 	err = c.Network.ClearBrowserCache(ctx)
 	if err != nil {
-		if opt.verbose { log.Print(err) }
+		log.Print(err)
 	}
 	err = c.Network.ClearBrowserCookies(ctx)
 	if err != nil {
-		if opt.verbose { log.Print(err) }
+		log.Print(err)
 	}
 
 	// Create the Navigate arguments with the optional Referrer field set.
 	navArgs := page.NewNavigateArgs("http://" + domain.domain)
 	_, err = c.Page.Navigate(ctx, navArgs)
 	if err != nil {
-		if opt.verbose { log.Print(err) }
+		log.Print(err)
 		return dwarf.VoidType{}
 	}
 
 	if _, err = domContent.Recv(); err != nil {
-		if opt.verbose { log.Print(err) }
+		log.Print(err)
 		return dwarf.VoidType{}
 	}
 
@@ -192,13 +189,13 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 	// since this method only takes optional arguments.
 	doc, err := c.DOM.GetDocument(ctx, nil)
 	if err != nil {
-		if opt.verbose { log.Print(err) }
+		log.Print(err)
 		return dwarf.VoidType{}
 	}
 
 	scriptIDs, err := c.DOM.QuerySelectorAll(ctx, dom.NewQuerySelectorAllArgs(doc.Root.NodeID, "script"))
 	if err != nil {
-		if opt.verbose { log.Println(err) }
+		log.Println(err)
 		return dwarf.VoidType{}
 	}
 
@@ -220,27 +217,21 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 				http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 				response, err := http.Get(scriptURL)
 				if err != nil {
-					if opt.verbose {
-						log.Printf("doDomain: Could not fetch external script: " + scriptURL)
-						log.Print(err)
-					}
+					log.Printf("doDomain: Could not fetch external script: " + scriptURL)
+					log.Print(err)
 					continue
 				}
 				if response.StatusCode >= 200 && response.StatusCode < 400 {
 					body, err := ioutil.ReadAll(response.Body)
 					if err != nil {
-						if opt.verbose {
-							log.Printf("doDomain: Could not get response body for external script: " + scriptURL)
-							log.Print(err)
-						}
+						log.Printf("doDomain: Could not get response body for external script: " + scriptURL)
+						log.Print(err)
 						continue
 					} else {
 						err := response.Body.Close()
 						if err != nil {
-							if opt.verbose {
-								log.Printf("doDomain: There was an error closing body for external script: " + scriptURL)
-								log.Print(err)
-							}
+							log.Printf("doDomain: There was an error closing body for external script: " + scriptURL)
+							log.Print(err)
 							continue
 						}
 						theScript.script = string(body)
@@ -266,23 +257,23 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 			}
 		}
 		if theScript.hash != "" {
-			if opt.doScan {
-				javaScriptToDB(domain, theScript, opt)
+			if options.doScan {
+				javaScriptToDB(domain, theScript, options)
 			}
 		} else {
-			if opt.verbose { log.Printf("Hash not sat for JS; the script is probably not there") }
+			log.Printf("Hash not sat for JS; the script is probably not there")
 		}
 
 	}
 
 	getAllCookies, err := cdp.Network.GetAllCookies(c.Network, ctx)
-	if err != nil && opt.verbose {
+	if err != nil {
 		log.Printf("Could not get cookies")
 		log.Print(err)
 	}
 
 	cookiesLst := getAllCookies.Cookies
-	if opt.doScan {
+	if options.doScan {
 		for _, cookie := range cookiesLst {
 			cookieToDB(domain, DomainCookie {
 				name:     cookie.Name,
@@ -291,14 +282,14 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 				httpOnly: boolToInt(cookie.HTTPOnly),
 				secure:   boolToInt(cookie.Secure),
 				value:    cookie.Value,
-			}, opt)
+			}, options)
 		}
 	}
 
 	return dwarf.VoidType{}
 }
 
-func loadDomainQueue(workerName string, opt options) []Domain {
+func loadDomainQueue(workerName string, options options) []Domain {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	db, err := sql.Open("mysql", connString)
@@ -308,25 +299,25 @@ func loadDomainQueue(workerName string, opt options) []Domain {
 
 	cleanStmt := `DELETE FROM lockeddomains WHERE worker = ?`
 	_, err = db.Exec(cleanStmt, workerName)
-	if err != nil && opt.verbose {
+	if err != nil {
 		log.Printf("LoadDomainQueue: Could not delete from locked")
 		log.Print(err)
 	}
 
 	var lockStmt string
-	if opt.scanOld {
-		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains)`
+	if options.scanOld {
+		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains)`
 	} else {
-		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory)`
+		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory)`
 	}
 
-	if opt.random {
+	if options.random {
 		lockStmt += ` ORDER BY rand() LIMIT ?;`
 	} else {
 		lockStmt += ` LIMIT ?;`
 	}
-	_, err = db.Exec(lockStmt, workerName, queueReserved)
-	if err != nil && opt.verbose {
+	_, err = db.Exec(lockStmt, workerName, options.scanLabel, queueReserved)
+	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
 		log.Print(err)
 	}
