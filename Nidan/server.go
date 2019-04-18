@@ -7,35 +7,25 @@ import (
 )
 
 func runServer(options options) {
-
 	http.HandleFunc("/TrackingCookie/", func(w http.ResponseWriter, r *http.Request) {
 		privacyBadgerToDB(curDomID, 0, strings.TrimPrefix(r.URL.Path, "/TrackingCookie/"), options)
-
-		_, err := w.Write([]byte("ok"))
-		if err != nil { log.Print(err) }
-	})
-
-	http.HandleFunc("/BlockDomain/", func(w http.ResponseWriter, r *http.Request) {
-		privacyBadgerToDB(curDomID, 1, strings.TrimPrefix(r.URL.Path, "/BlockDomain/"), options)
-
-		_, err := w.Write([]byte("ok"))
-		if err != nil { log.Print(err) }
-	})
-
-	http.HandleFunc("/OriginMultipleTrack/", func(w http.ResponseWriter, r *http.Request) {
-		privacyBadgerToDB(curDomID, 1, strings.TrimPrefix(r.URL.Path, "/OriginMultipleTrack/"), options)
-
-		_, err := w.Write([]byte("ok"))
-		if err != nil { log.Print(err) }
+		writeOk(w)
 	})
 
 	http.HandleFunc("/TrackingCookieTooHigh/", func(w http.ResponseWriter, r *http.Request) {
 		privacyBadgerToDB(curDomID, 0, strings.TrimPrefix(r.URL.Path, "/TrackingCookieTooHigh/"), options)
-
-		_, err := w.Write([]byte("ok"))
-		if err != nil { log.Print(err) }
+		writeOk(w)
 	})
 
+	http.HandleFunc("/BlockDomain/", func(w http.ResponseWriter, r *http.Request) {
+		privacyBadgerToDB(curDomID, 1, strings.TrimPrefix(r.URL.Path, "/BlockDomain/"), options)
+		writeOk(w)
+	})
+
+	http.HandleFunc("/OriginMultipleTrack/", func(w http.ResponseWriter, r *http.Request) {
+		privacyBadgerToDB(curDomID, 1, strings.TrimPrefix(r.URL.Path, "/OriginMultipleTrack/"), options)
+		writeOk(w)
+	})
 
 	http.HandleFunc("/blockSetCookie/", privacyBadgerBlockSetCookie)
 	http.HandleFunc("/strike/", privacyBadgerStrike)
@@ -48,25 +38,22 @@ func runServer(options options) {
 
 func privacyBadgerDebug(w http.ResponseWriter, r *http.Request) {
 	log.Print(r.URL.Path)
-
-	_, err := w.Write([]byte("ok"))
-	if err != nil {
-		log.Print(err)
-	}
+	writeOk(w)
 }
 
 func privacyBadgerBlockSetCookie(w http.ResponseWriter, r *http.Request) {
 	log.Print(r.URL.Path)
 	//privacyBadgerToDB(curDomID, 0, strings.TrimPrefix(r.URL.Path, "/blockSetCookie/"))
-
-	_, err := w.Write([]byte("ok"))
-	if err != nil { log.Print(err) }
+	writeOk(w)
 }
 
 func privacyBadgerStrike(w http.ResponseWriter, r *http.Request) {
 	message := "Strike " + strings.TrimPrefix(r.URL.Path, "/strike/")
 	log.Print(message) // TODO: Not implemented in DB yet
+	writeOk(w)
+}
 
+func writeOk(w http.ResponseWriter) {
 	_, err := w.Write([]byte("ok"))
-	if err != nil {	log.Print(err) }
+	if err != nil { log.Print(err) }
 }

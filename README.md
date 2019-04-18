@@ -1,6 +1,10 @@
 # aau-security
 Web application security project
 
+## Nidan
+
+A tool for scanning a huge range of web sites for security related issues, such as using an outdated JavaScript library.
+
 ## PyWare
 
 Tool for analyzing JavaScript malware
