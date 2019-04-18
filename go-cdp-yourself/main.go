@@ -306,9 +306,9 @@ func loadDomainQueue(workerName string, options options) []Domain {
 
 	var lockStmt string
 	if options.scanOld {
-		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains)`
+		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains WHERE scan_label = ?)`
 	} else {
-		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory)`
+		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains WHERE scan_label = ?) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory WHERE scan_label = ?)`
 	}
 
 	if options.random {
@@ -316,7 +316,12 @@ func loadDomainQueue(workerName string, options options) []Domain {
 	} else {
 		lockStmt += ` LIMIT ?;`
 	}
-	_, err = db.Exec(lockStmt, workerName, options.scanLabel, queueReserved)
+
+	if options.scanOld {
+		_, err = db.Exec(lockStmt, workerName, options.scanLabel, options.scanLabel, queueReserved)
+	} else {
+		_, err = db.Exec(lockStmt, workerName, options.scanLabel, options.scanLabel, options.scanLabel, queueReserved)
+	}
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
 		log.Print(err)
