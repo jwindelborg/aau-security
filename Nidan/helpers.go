@@ -45,6 +45,7 @@ func getHttpHeaders(url string) string {
 	resp, err := http.Head(url)
 	if err != nil {
 		log.Print("Could not get http header")
+		return ""
 	}
 	defer resp.Body.Close()
 
