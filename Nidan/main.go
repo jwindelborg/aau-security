@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-var connString = "aau:2387AXumK52aeaSA@tcp(142.93.109.128:3306)/"
+var connString = "aau:2387AXumK52aeaSA@tcp(142.93.109.128:3306)/aau"
 var siteWorstCase = 100*time.Second
 var queueReserved = 10
 var curDomID = 0
@@ -33,13 +33,12 @@ func main() {
 
 	options := argParse(os.Args)
 
-	connString += options.dbName
 	go startAndHandleChrome(options.port, channel)
 	time.Sleep(1 * time.Second)
 	finished := false
 
 	if options.doPB {
-		go runServer()
+		go runServer(options)
 	}
 
 	for !finished {
@@ -49,12 +48,12 @@ func main() {
 			continue
 		}
 		for _, domain := range domains {
-			log.Printf("Doing domain: " + domain.domain)
+			if !options.quite { log.Printf("Doing domain: " + domain.domain) }
 			curDomID = domain.id
 			doDomain(domain, options.port, channel, options)
 		}
 		if options.doScan {
-			domainVisitHistory(options.worker)
+			domainVisitHistory(options.worker, options)
 		}
 	}
 	log.Printf("No more domains to process!")
@@ -63,11 +62,12 @@ func main() {
 
 func startAndHandleChrome(port string, channel chan string) {
 
-	// xvfb-run google-chrome-stable --load-extension=~/Code/privacybadger/src/ --remote-debugging-port=9222 --disable-gpu
-	cmd := exec.Command("google-chrome-stable", "--headless", "--remote-debugging-port=" + port, "--disable-gpu")
+	// xvfb-run chromium --load-extension=~/Code/privacybadger/src/ --remote-debugging-port=9222 --disable-gpu
+	cmd := exec.Command("chromium", "--headless", "--remote-debugging-port=" + port, "--disable-gpu")
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
+	log.Print("Chrome started")
 
 	for true {
 		switch stmt := <-channel; stmt {
@@ -105,7 +105,7 @@ func startAndHandleChrome(port string, channel chan string) {
 
 }
 
-func doDomain(domain Domain, port string, channel chan string, opt options) dwarf.VoidType {
+func doDomain(domain Domain, port string, channel chan string, options options) dwarf.VoidType {
 
 	checkChrome := false
 	for !checkChrome {
@@ -125,6 +125,7 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 		checkChrome = true
 	}
 
+	//region Chrome setup
 	ctx, cancel := context.WithTimeout(context.Background(), siteWorstCase)
 	defer cancel()
 
@@ -171,6 +172,7 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 	if err != nil {
 		log.Print(err)
 	}
+	//endregion Chrome setup
 
 	// Create the Navigate arguments with the optional Referrer field set.
 	navArgs := page.NewNavigateArgs("http://" + domain.domain)
@@ -193,104 +195,108 @@ func doDomain(domain Domain, port string, channel chan string, opt options) dwar
 		return dwarf.VoidType{}
 	}
 
-	scriptIDs, err := c.DOM.QuerySelectorAll(ctx, dom.NewQuerySelectorAllArgs(doc.Root.NodeID, "script"))
-	if err != nil {
-		log.Println(err)
-		return dwarf.VoidType{}
-	}
+	httpHeaderToDB(curDomID, *doc.Root.BaseURL, httpHeadersToStr(getHttpHeaders(*doc.Root.BaseURL)), options)
 
-	for _, script := range scriptIDs.NodeIDs {
-		var theScript JavaScript
-		externalFlag := false
-		getOutPar := dom.GetOuterHTMLArgs{
-			NodeID:&script,
+	// Handle JavaScript
+	if options.doScan {
+		scriptIDs, err := c.DOM.QuerySelectorAll(ctx, dom.NewQuerySelectorAllArgs(doc.Root.NodeID, "script"))
+		if err != nil {
+			log.Println(err)
+			return dwarf.VoidType{}
 		}
-		getAttrPar := dom.GetAttributesArgs{
-			NodeID:script,
-		}
-		outer, _ := c.DOM.GetOuterHTML(ctx, &getOutPar)
-		attr, _ := c.DOM.GetAttributes(ctx, &getAttrPar)
-		for i, atr := range attr.Attributes {
-			if atr == "src" {
-				externalFlag = true
-				scriptURL := prepareScriptURL(domain.domain,attr.Attributes[i+1])
-				http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-				response, err := http.Get(scriptURL)
-				if err != nil {
-					log.Printf("doDomain: Could not fetch external script: " + scriptURL)
-					log.Print(err)
-					continue
-				}
-				if response.StatusCode >= 200 && response.StatusCode < 400 {
-					body, err := ioutil.ReadAll(response.Body)
+
+		for _, script := range scriptIDs.NodeIDs {
+			var theScript JavaScript
+			externalFlag := false
+			getOutPar := dom.GetOuterHTMLArgs{
+				NodeID:&script,
+			}
+			getAttrPar := dom.GetAttributesArgs{
+				NodeID:script,
+			}
+			outer, _ := c.DOM.GetOuterHTML(ctx, &getOutPar)
+			attr, _ := c.DOM.GetAttributes(ctx, &getAttrPar)
+			for i, atr := range attr.Attributes {
+				if atr == "src" {
+					externalFlag = true
+					scriptURL := prepareScriptURL(domain.domain,attr.Attributes[i+1])
+					http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+					response, err := http.Get(scriptURL)
 					if err != nil {
-						log.Printf("doDomain: Could not get response body for external script: " + scriptURL)
+						log.Printf("doDomain: Could not fetch external script: " + scriptURL)
 						log.Print(err)
 						continue
-					} else {
-						err := response.Body.Close()
+					}
+					if response.StatusCode >= 200 && response.StatusCode < 400 {
+						body, err := ioutil.ReadAll(response.Body)
 						if err != nil {
-							log.Printf("doDomain: There was an error closing body for external script: " + scriptURL)
+							log.Printf("doDomain: Could not get response body for external script: " + scriptURL)
 							log.Print(err)
 							continue
+						} else {
+							err := response.Body.Close()
+							if err != nil {
+								log.Printf("doDomain: There was an error closing body for external script: " + scriptURL)
+								log.Print(err)
+								continue
+							}
+							theScript.script = string(body)
+							theScript.hash = sha3FromStr(string(body))
+							theScript.url = scriptURL
+							theScript.isExternal = true
 						}
-						theScript.script = string(body)
-						theScript.hash = sha3FromStr(string(body))
-						theScript.url = scriptURL
-						theScript.isExternal = true
 					}
 				}
 			}
-		}
-		if !externalFlag {
-			if outer != nil {
-				startIndex := strings.Index(outer.OuterHTML, ">") + 1
-				endIndex := strings.LastIndex(outer.OuterHTML, "</script>")
-				if startIndex != -1 && endIndex != -1 {
-					theScript.script = outer.OuterHTML[startIndex:endIndex]
-				} else {
-					theScript.script = outer.OuterHTML
+			if !externalFlag {
+				if outer != nil {
+					startIndex := strings.Index(outer.OuterHTML, ">") + 1
+					endIndex := strings.LastIndex(outer.OuterHTML, "</script>")
+					if startIndex != -1 && endIndex != -1 {
+						theScript.script = outer.OuterHTML[startIndex:endIndex]
+					} else {
+						theScript.script = outer.OuterHTML
+					}
+					theScript.hash = sha3FromStr(theScript.script)
+					theScript.isExternal = false
+					theScript.url = domain.domain
 				}
-				theScript.hash = sha3FromStr(theScript.script)
-				theScript.isExternal = false
-				theScript.url = domain.domain
+			}
+			if theScript.hash != "" {
+				javaScriptToDB(domain, theScript, options)
+			} else {
+				log.Printf("Hash not sat for JS; the script is probably not there")
 			}
 		}
-		if theScript.hash != "" {
-			if opt.doScan {
-				javaScriptToDB(domain, theScript)
-			}
-		} else {
-			log.Printf("Hash not sat for JS; the script is probably not there")
+	}
+
+	// Handle Cookies
+	if options.doScan {
+		getAllCookies, err := cdp.Network.GetAllCookies(c.Network, ctx)
+		if err != nil {
+			log.Printf("Could not get cookies")
+			log.Print(err)
 		}
 
-	}
-
-	getAllCookies, err := cdp.Network.GetAllCookies(c.Network, ctx)
-	if err != nil {
-		log.Printf("Could not get cookies")
-		log.Print(err)
-	}
-
-	cookiesLst := getAllCookies.Cookies
-	if opt.doScan {
+		cookiesLst := getAllCookies.Cookies
 		for _, cookie := range cookiesLst {
-			cookieToDB(domain, DomainCookie {
+			cookieToDB(domain, DomainCookie{
 				name:     cookie.Name,
 				domain:   cookie.Domain,
 				expires:  cookie.Expires,
 				httpOnly: boolToInt(cookie.HTTPOnly),
 				secure:   boolToInt(cookie.Secure),
 				value:    cookie.Value,
-			})
+			}, options)
 		}
 	}
 
 	return dwarf.VoidType{}
 }
 
-func loadDomainQueue(workerName string, opt options) []Domain {
+func loadDomainQueue(workerName string, options options) []Domain {
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	db, err := sql.Open("mysql", connString)
 	if err != nil {
@@ -305,18 +311,16 @@ func loadDomainQueue(workerName string, opt options) []Domain {
 	}
 
 	var lockStmt string
-	if opt.scanOld {
-		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains)`
+	if options.scanOld {
+		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains WHERE scan_label = ?)`
+		if options.random { lockStmt += ` ORDER BY rand() LIMIT ?;`	} else { lockStmt += ` LIMIT ?;` }
+		_, err = db.Exec(lockStmt, workerName, options.scanLabel, options.scanLabel, queueReserved)
 	} else {
-		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time) SELECT domains.domain_id, ? AS 'worker', NOW() FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory)`
+		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains WHERE scan_label = ?) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory WHERE scan_label = ?)`;
+		if options.random { lockStmt += ` ORDER BY rand() LIMIT ?;`	} else { lockStmt += ` LIMIT ?;` }
+		_, err = db.Exec(lockStmt, workerName, options.scanLabel, options.scanLabel, options.scanLabel, queueReserved)
 	}
 
-	if opt.random {
-		lockStmt += ` ORDER BY rand() LIMIT ?;`
-	} else {
-		lockStmt += ` LIMIT ?;`
-	}
-	_, err = db.Exec(lockStmt, workerName, queueReserved)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
 		log.Print(err)
@@ -353,6 +357,5 @@ func loadDomainQueue(workerName string, opt options) []Domain {
 		log.Print(err)
 		log.Fatal("LoadDomainsDB: Could not close DB conn")
 	}
-	cancel() // Can we just defer?
 	return domains
 }

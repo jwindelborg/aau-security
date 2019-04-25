@@ -7,28 +7,34 @@ import (
 )
 
 func argParse(args []string) options {
-	var helpString = "Options for Nidan scanner:\n-h,--help\tThis\n-p [9222]\tPort default 9222\n-w [worker]\tWorker default $HOST\n--dk\t\tDefault DB\n--alexaDB\tAlexa DB\n--nidan\t\tNidan DB\n--no-scan\tDon't scan\n--no-pb\t\tNo Privacy Badger\n--old\t\tScan already visited\n--random\tOrder queue random\n"
-	var options options
+	var helpString = "Options for Nidan scanner:\n" +
+		"-h,--help\tThis\n" +
+		"-q\t\tQuite (suppress doing domain)\n" +
+		"--name [name]\tName of scan\n" +
+		"-p [9222]\tPort default 9222\n" +
+		"-w [worker]\tWorker default $HOST\n" +
+		"--no-scan\tDon't scan\n" +
+		"--no-pb\t\tNo Privacy Badger\n" +
+		"--old\t\tScan already visited\n" +
+		"--random\tOrder queue random\n" +
+		"--no-headers\tNo HTTP headers\n"
 
-	options.dbName = "aau"
+	var options options
+	options.scanLabel = "unnamed"
 	options.port = "9222"
 	options.worker, _ = os.Hostname()
 	options.doScan = true
 	options.doPB = true
 	options.scanOld = false
 	options.random = false
+	options.quite = false
+	options.doHeaders = true
 
 	for i, arg := range args {
 		switch arg {
 		case "--help", "-h":
 			fmt.Print(helpString)
 			os.Exit(0)
-		case "--alexa":
-			options.dbName = "alexaDB"
-		case "--dk":
-			options.dbName = "aau"
-		case "--nidan":
-			options.dbName = "nidan"
 		case "--no-scan":
 			options.doScan = false
 		case "--no-pb":
@@ -37,6 +43,16 @@ func argParse(args []string) options {
 			options.scanOld = true
 		case "--random":
 			options.random = true
+		case "--no-headers":
+			options.doHeaders = false
+		case "-q":
+			options.quite = true
+		case "--name":
+			if len(args) > i {
+				options.scanLabel = args[i+1]
+			} else {
+				log.Fatal("You didn't specify a name")
+			}
 		case "-p":
 			if len(args) > i {
 				options.port = args[i+1]
