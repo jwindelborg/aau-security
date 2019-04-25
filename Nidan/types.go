@@ -26,6 +26,7 @@ type options struct {
 	worker    string
 	doScan    bool
 	doPB      bool
+	doHeaders bool
 	scanOld   bool
 	random    bool
 	quite     bool

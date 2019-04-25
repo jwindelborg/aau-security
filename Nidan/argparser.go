@@ -16,7 +16,8 @@ func argParse(args []string) options {
 		"--no-scan\tDon't scan\n" +
 		"--no-pb\t\tNo Privacy Badger\n" +
 		"--old\t\tScan already visited\n" +
-		"--random\tOrder queue random\n"
+		"--random\tOrder queue random\n" +
+		"--no-headers\tNo HTTP headers\n"
 
 	var options options
 	options.scanLabel = "unnamed"
@@ -27,6 +28,7 @@ func argParse(args []string) options {
 	options.scanOld = false
 	options.random = false
 	options.quite = false
+	options.doHeaders = true
 
 	for i, arg := range args {
 		switch arg {
@@ -41,6 +43,8 @@ func argParse(args []string) options {
 			options.scanOld = true
 		case "--random":
 			options.random = true
+		case "--no-headers":
+			options.doHeaders = false
 		case "-q":
 			options.quite = true
 		case "--name":

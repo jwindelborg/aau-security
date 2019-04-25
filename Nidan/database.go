@@ -105,3 +105,25 @@ func privacyBadgerToDB(topDomainID int, isRed int, domain string, options option
 
 	return dwarf.VoidType{}
 }
+
+func httpHeaderToDB(topDomainID int, url string, headers string, options options) dwarf.VoidType {
+	db, err := sql.Open("mysql", connString)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	s := `INSERT IGNORE INTO httpheaders (domain_id, request_url, scan_label, added, header) VALUES (?, ?, ?, now(), ?);`
+	_, err = db.Exec(s, topDomainID, url, options.scanLabel, headers)
+	if err != nil {
+		log.Printf("httpHeaderToDB: Could not save HTTP header")
+		log.Print(err)
+	}
+
+	err = db.Close()
+	if err != nil {
+		log.Print(err)
+		log.Fatal("httpHeaderToDB: db conn could not be closed")
+	}
+
+	return dwarf.VoidType{}
+}

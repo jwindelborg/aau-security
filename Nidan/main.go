@@ -195,6 +195,8 @@ func doDomain(domain Domain, port string, channel chan string, options options) 
 		return dwarf.VoidType{}
 	}
 
+	httpHeaderToDB(curDomID, *doc.Root.BaseURL, httpHeadersToStr(getHttpHeaders(*doc.Root.BaseURL)), options)
+
 	// Handle JavaScript
 	if options.doScan {
 		scriptIDs, err := c.DOM.QuerySelectorAll(ctx, dom.NewQuerySelectorAllArgs(doc.Root.NodeID, "script"))
