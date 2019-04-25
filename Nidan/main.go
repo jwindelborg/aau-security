@@ -195,7 +195,10 @@ func doDomain(domain Domain, port string, channel chan string, options options) 
 		return dwarf.VoidType{}
 	}
 
-	httpHeaderToDB(curDomID, *doc.Root.BaseURL, httpHeadersToStr(getHttpHeaders(*doc.Root.BaseURL)), options)
+	httpHeaders := getHttpHeaders(*doc.Root.BaseURL)
+	if httpHeaders != "" {
+		httpHeaderToDB(curDomID, *doc.Root.BaseURL, httpHeaders, options)
+	}
 
 	// Handle JavaScript
 	if options.doScan {
