@@ -41,7 +41,7 @@ func sha3FromStr(str string) string {
 	return hex.EncodeToString(shaBytes[:])
 }
 
-func getHttpHeaders(url string) []string {
+func getHttpHeaders(url string) string {
 	resp, err := http.Head(url)
 	if err != nil {
 		log.Print("Could not get http header")
@@ -54,12 +54,13 @@ func getHttpHeaders(url string) []string {
 			res = append(res, fmt.Sprintf("%s: %s", name, value))
 		}
 	}
-	return res
-}
 
-func httpHeadersToStr(httpHeaders []string) string {
+	if len(res) < 1 {
+		return ""
+	}
+
 	var s string
-	for _, header := range httpHeaders {
+	for _, header := range res {
 		s = s + header + "\n"
 	}
 	return s
