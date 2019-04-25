@@ -42,6 +42,11 @@ func sha3FromStr(str string) string {
 }
 
 func getHttpHeaders(url string) string {
+	// TODO: This can fail, our program behaves like curl:
+	//  curl -I https://www.nordnet.dk/start.html     --> curl: (52) Empty reply from server = death
+	//  curl -I https://www.nordnet.dk/start.html:443 --> normal HTTP headers (not tested in Go)
+	//  we can handle both HTTP and HTTPS, something else breaks it
+
 	resp, err := http.Head(url)
 	if err != nil {
 		log.Print("Could not get http header")
