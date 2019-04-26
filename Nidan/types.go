@@ -22,13 +22,14 @@ type JavaScript struct {
 }
 
 type options struct {
-	port      string
-	worker    string
-	doScan    bool
-	doPB      bool
-	doHeaders bool
-	scanOld   bool
-	random    bool
-	quite     bool
-	scanLabel string
+	port       string
+	worker     string
+	doScan     bool
+	doPB       bool
+	doHeaders  bool
+	scanOld    bool
+	random     bool
+	quite      bool
+	scanLabel  string
+	chromeName string
 }

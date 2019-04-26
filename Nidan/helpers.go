@@ -6,6 +6,7 @@ import (
 	"golang.org/x/crypto/sha3"
 	"log"
 	"net/http"
+	"os/exec"
 	"strings"
 )
 
@@ -70,4 +71,26 @@ func getHttpHeaders(url string) string {
 		s = s + header + "\n"
 	}
 	return s
+}
+
+func guessDefaultChromiumName() string {
+	cmd := exec.Command("uname", "-a")
+	stdout, err := cmd.Output()
+	if err != nil {
+		return "chromium"
+	}
+
+	// On Arch Linux chromium is called chromium
+	if strings.Contains(strings.ToLower(string(stdout)), "arch") {
+		return "chromium"
+	}
+
+	// On Ubuntu Linux chromium is called chromium-browser
+	if strings.Contains(strings.ToLower(string(stdout)), "ubuntu") {
+		return "chromium-browser"
+	}
+
+	// If we have no clue we guess
+	return "chromium-browser"
+
 }

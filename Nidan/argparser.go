@@ -17,7 +17,8 @@ func argParse(args []string) options {
 		"--no-pb\t\tNo Privacy Badger\n" +
 		"--old\t\tScan already visited\n" +
 		"--random\tOrder queue random\n" +
-		"--no-headers\tNo HTTP headers\n"
+		"--no-headers\tNo HTTP headers\n" +
+		"--chromium-name[chromium]\tName of chrome/chromium\n"
 
 	var options options
 	options.scanLabel = "unnamed"
@@ -29,6 +30,7 @@ func argParse(args []string) options {
 	options.random = false
 	options.quite = false
 	options.doHeaders = true
+	options.chromeName = guessDefaultChromiumName()
 
 	for i, arg := range args {
 		switch arg {
@@ -64,6 +66,12 @@ func argParse(args []string) options {
 				options.worker = args[i+1]
 			} else {
 				log.Fatal("You have as many braincells as you have worker names")
+			}
+		case "--chromium-name":
+			if len(args) > i {
+				options.chromeName = args[i+1]
+			} else {
+				log.Fatal("You are pretty stupid")
 			}
 		}
 	}

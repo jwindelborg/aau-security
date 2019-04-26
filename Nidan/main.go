@@ -33,8 +33,8 @@ func main() {
 
 	options := argParse(os.Args)
 
-	go startAndHandleChrome(options.port, channel)
-	time.Sleep(1 * time.Second)
+	go startAndHandleChrome(channel, options)
+	time.Sleep(5 * time.Second)
 	finished := false
 
 	if options.doPB {
@@ -60,10 +60,10 @@ func main() {
 	channel <- "done"
 }
 
-func startAndHandleChrome(port string, channel chan string) {
+func startAndHandleChrome(channel chan string, options options) {
 
-	// xvfb-run chromium --load-extension=~/Code/privacybadger/src/ --remote-debugging-port=9222 --disable-gpu
-	cmd := exec.Command("chromium", "--headless", "--remote-debugging-port=" + port, "--disable-gpu")
+	// xvfb-run chromium --load-extension=~/privacybadger/src/ --remote-debugging-port=9222 --disable-gpu
+	cmd := exec.Command("xvfb-run", options.chromeName, "--load-extension=~/privacybadger/src/", "--remote-debugging-port=" + options.port, "--disable-gpu")
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
