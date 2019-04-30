@@ -64,9 +64,8 @@ def insert_hsts(domain_id, policy):
 
 def count_rows(table):
     db, cursor = get_mysql_db_cursor()
-    sql = """SELECT COUNT(*) FROM aau.%s"""
-    params = (table,)
-    cursor.execute(sql, params)
+    sql = "SELECT COUNT(*) FROM aau." + table
+    cursor.execute(sql)
     number = cursor.fetchall()[0][0]
     cursor.close()
     db.close()
