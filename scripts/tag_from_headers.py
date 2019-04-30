@@ -88,6 +88,8 @@ while row is not None:
                 insert_cms(row[0], 'drupal')
             elif "orchard" in key_value[1].lower():
                 insert_cms(row[0], 'orchard')
+            elif "synkron" in key_value[1].lower():
+                insert_cms(row[0], 'synkron')
             else:
                 print("\nHey, do you know what this is?")
                 print(key_value[1])
