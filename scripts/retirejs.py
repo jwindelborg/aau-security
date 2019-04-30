@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
 from ezprogress.progressbar import ProgressBar
-import mysql.connector
 import subprocess
 import json
 import sha3
+import os
+import database
 
 
 def severity(severity_str):
@@ -20,105 +21,69 @@ def severity(severity_str):
         return 4
 
 
-count_db = mysql.connector.connect(host="142.93.109.128", user="aau", passwd="2387AXumK52aeaSA")
-fetch_db = mysql.connector.connect(host="142.93.109.128", user="aau", passwd="2387AXumK52aeaSA")
-insert_db = mysql.connector.connect(host="142.93.109.128", user="aau", passwd="2387AXumK52aeaSA")
+def run():
+    progress_total = database.count_rows('javascripts')
+    db, cursor = database.get_mysql_db_cursor()
+    cursor.execute("SELECT * FROM aau.javascripts ORDER BY RAND()")
+    row = cursor.fetchone()
 
-insert_cursor = insert_db.cursor()
-count_cursor = count_db.cursor()
-fetch_cursor = fetch_db.cursor()
+    progress_bar = ProgressBar(progress_total, bar_length=100)
+    progress_bar.start()
+    progress_point = 0
 
+    while row is not None:
+        progress_point += 1
+        progress_bar.update(progress_point)
+        with open("js_tmp/tmp.js", 'w+') as f:
+            f.write(row[0])
+        subprocess_response = subprocess.run(["retire",
+                                              "--verbose",
+                                              "--outputformat",
+                                              "json",
+                                              "--jspath",
+                                              "js_tmp/"
+                                              ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-count_cursor.execute("SELECT COUNT(*) FROM aau.javascripts")
-amount_of_js = count_cursor.fetchall()[0][0]
-count_cursor.close()
-count_db.close()
+        try:
+            if subprocess_response.returncode != 0:
+                if subprocess_response.returncode == 13:
+                    real_string = str(subprocess_response.stderr.decode("utf-8"))
+                    javascript_data = json.loads(real_string)
 
+                    for data in javascript_data["data"]:
+                        for results in data['results']:
+                            for vulnerability in results["vulnerabilities"]:
+                                if "identifiers" in vulnerability and "CVE" in vulnerability["identifiers"]:
+                                    vulnerability_id = vulnerability["identifiers"]["CVE"][0]
+                                else:
+                                    vulnerability_id = sha3.sha3_224(str(vulnerability).encode('utf-8')).hexdigest()
 
-def insert_vulnerability(id_vulnerability, vulnerability_description, vulnerability_severity):
-    sql = """REPLACE INTO aau.vulnerabilities (vulnerability_id, vulnerability, severity, discovered) VALUES (%s, %s, %s, NOW())"""
-    sql_params = (id_vulnerability, vulnerability_description, vulnerability_severity)
-    insert_cursor.execute(sql, sql_params)
-    insert_db.commit()
+                                library = results["component"]
+                                version = results["version"]
+                                library_id = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
 
-
-def insert_library(id_library, library_name, library_version):
-    sql = """REPLACE INTO aau.libraries (library_id, libname, version, library_tagged) VALUES (%s, %s, %s, NOW())"""
-    sql_params = (id_library, library_name, library_version)
-    insert_cursor.execute(sql, sql_params)
-    insert_db.commit()
-
-
-def insert_vulnerability_js_relation(id_library, id_vulnerability):
-    sql = """REPLACE INTO aau.libraryvulnerabilities (library_id, vulnerability_id, vulnerability_added) VALUES (%s, %s, NOW())"""
-    sql_params = (id_library, id_vulnerability)
-    insert_cursor.execute(sql, sql_params)
-    insert_db.commit()
-
-
-def insert_js_library_relation(vulnerable_js_hash, id_library):
-    sql = """REPLACE INTO aau.javascriptlibraries (js_hash, library_id, library_identified_time) VALUES (%s, %s, NOW())"""
-    sql_params = (vulnerable_js_hash, id_library)
-    insert_cursor.execute(sql, sql_params)
-    insert_db.commit()
-
-
-fetch_cursor.execute("SELECT * FROM aau.javascripts ORDER BY RAND()")
-row = fetch_cursor.fetchone()
-
-progress_bar = ProgressBar(amount_of_js, bar_length=100)
-progress_bar.start()
-progress_point = 0
-
-while row is not None:
-    progress_point += 1
-    progress_bar.update(progress_point)
-    with open("js_tmp/tmp.js", 'w+') as f:
-        f.write(row[0])
-    subprocess_response = subprocess.run(["retire",
-                                          "--verbose",
-                                          "--outputformat",
-                                          "json",
-                                          "--jspath",
-                                          "js_tmp/"
-                                          ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-    try:
-        if subprocess_response.returncode != 0:
-            if subprocess_response.returncode == 13:
-                real_string = str(subprocess_response.stderr.decode("utf-8"))
+                                database.insert_vulnerability(vulnerability_id, str(vulnerability),
+                                                              severity(vulnerability["severity"]))
+                                database.insert_library(library_id, library, version)
+                                database.insert_vulnerability_js_relation(library_id, vulnerability_id)
+                                database.insert_js_library_relation(row[1], library_id)
+            else:
+                real_string = str(subprocess_response.stdout.decode("utf-8"))
                 javascript_data = json.loads(real_string)
 
                 for data in javascript_data["data"]:
                     for results in data['results']:
-                        for vulnerability in results["vulnerabilities"]:
-                            if "identifiers" in vulnerability and "CVE" in vulnerability["identifiers"]:
-                                vulnerability_id = vulnerability["identifiers"]["CVE"][0]
-                            else:
-                                vulnerability_id = sha3.sha3_224(str(vulnerability).encode('utf-8')).hexdigest()
+                        library = results["component"]
+                        version = results["version"]
+                        library_id = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
 
-                            library = results["component"]
-                            version = results["version"]
-                            library_id = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
+                        database.insert_library(library_id, library, version)
+                        database.insert_js_library_relation(row[1], library_id)
+        except:
+            print("Could not handle " + row[1])
 
-                            insert_vulnerability(vulnerability_id, str(vulnerability), severity(vulnerability["severity"]))
-                            insert_library(library_id, library, version)
-                            insert_vulnerability_js_relation(library_id, vulnerability_id)
-                            insert_js_library_relation(row[1], library_id)
-        else:
-            real_string = str(subprocess_response.stdout.decode("utf-8"))
-            javascript_data = json.loads(real_string)
-
-            for data in javascript_data["data"]:
-                for results in data['results']:
-                    library = results["component"]
-                    version = results["version"]
-                    library_id = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
-
-                    insert_library(library_id, library, version)
-                    insert_js_library_relation(row[1], library_id)
-    except:
-        print("Could not handle " + row[1])
-
-    row = fetch_cursor.fetchone()
-
+        row = cursor.fetchone()
+    os.remove('js_tmp/tmp.js')
+    os.rmdir('js_tmp')
+    cursor.close()
+    db.close()

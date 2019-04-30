@@ -1,98 +1,96 @@
 #!/usr/bin/env python3
 
 from ezprogress.progressbar import ProgressBar
-import mysql.connector
-
-count_db = mysql.connector.connect(host="142.93.109.128", user="aau", passwd="2387AXumK52aeaSA")
-fetch_db = mysql.connector.connect(host="142.93.109.128", user="aau", passwd="2387AXumK52aeaSA")
-insert_db = mysql.connector.connect(host="142.93.109.128", user="aau", passwd="2387AXumK52aeaSA")
-
-insert_cursor = insert_db.cursor()
-count_cursor = count_db.cursor()
-fetch_cursor = fetch_db.cursor()
+import database
 
 
-count_cursor.execute("SELECT COUNT(*) FROM aau.httpheaders")
-number_of_headers = count_cursor.fetchall()[0][0]
-count_cursor.close()
-count_db.close()
+def x_power_search(s):
+    associations = [
+        ("drupal", "drupal"),
+        ("express", "expressjs"),
+        ("statamic", "statamic"),
+        ("lynet", "lynet")
+    ]
+    for key, value in associations:
+        if key in s:
+            return value
+    return "-1"
 
 
-def insert_server(domain_id, server):
-    sql = """REPLACE INTO aau.serversoftware (domain_id, software, discovered) VALUES (%s, %s, NOW())"""
-    sql_params = (domain_id, server)
-    insert_cursor.execute(sql, sql_params)
-    insert_db.commit()
+def x_generator_search(s):
+    associations = [
+        ("drupal", "drupal"),
+        ("orchard", "orchard"),
+        ("synkron", "synkron")
+    ]
+    for key, value in associations:
+        if key in s:
+            return value
+    return "-1"
 
 
-def insert_x_poewered_by(domain_id, x_powered_by):
-    sql = """REPLACE INTO aau.poweredby (domain_id, xPoweredBy, discovered) VALUES (%s, %s, NOW())"""
-    sql_params = (domain_id, x_powered_by)
-    insert_cursor.execute(sql, sql_params)
-    insert_db.commit()
+def key_clue_search(s):
+    associations = [
+        ("x-drupal", "drupal"),
+        ("x-aspnetmvc", "aspnetmvc"),
+        ("sharepoint", "sharepoint")
+    ]
+    for key, value in associations:
+        if key in s:
+            return value
+    return "-1"
 
 
-def insert_hsts(domain_id, policy):
-    sql = """REPLACE INTO aau.hsts (domain_id, policy, discovered) VALUES (%s, %s, NOW())"""
-    sql_params = (domain_id, policy)
-    insert_cursor.execute(sql, sql_params)
-    insert_db.commit()
+def run():
+    number_of_headers = database.count_rows("httpheaders")
+    progress_bar = ProgressBar(number_of_headers, bar_length=100)
+    progress_bar.start()
+    progress_point = 0
 
+    db, cursor = database.get_mysql_db_cursor()
+    cursor.execute("SELECT domain_id, header FROM aau.httpheaders")
+    row = cursor.fetchone()
 
-def insert_cms(domain_id, cms_system):
-    sql = """REPLACE INTO aau.identifiedcms (domain_id, cms_system, discovered) VALUES (%s, %s, NOW())"""
-    sql_params = (domain_id, cms_system)
-    insert_cursor.execute(sql, sql_params)
-    insert_db.commit()
+    while row is not None:
+        progress_point += 1
+        progress_bar.update(progress_point)
+        headers = row[1].split("\n")
+        for header in headers:
 
+            if header == "":
+                continue
 
-fetch_cursor.execute("SELECT domain_id, header FROM aau.httpheaders")
-row = fetch_cursor.fetchone()
+            key_value = header.split(":")
+            key = key_value[0].lower()
+            value = key_value[1].strip().lower()
+            domain_id = row[0]
 
-progress_bar = ProgressBar(number_of_headers, bar_length=100)
-progress_bar.start()
-progress_point = 0
+            if value == "":
+                continue
 
-while row is not None:
-    progress_point += 1
-    progress_bar.update(progress_point)
-    headers = row[1].split("\n")
-    for header in headers:
-        if header == "":
-            continue
-        key_value = header.split(":")
-        if key_value[1].strip() == "":
-            continue
-        if key_value[0].lower() == "server":
-            insert_server(row[0], key_value[1].strip())
-        if key_value[0].lower() == "strict-transport-security":
-            insert_hsts(row[0], key_value[1].strip())
-        if "x-drupal" in key_value[0].lower():
-            insert_cms(row[0], 'drupal')
-        if "x-aspnetmvc" in key_value[0].lower():
-            insert_cms(row[0], 'aspnetmvc')
-        if "sharepoint" in key_value[0].lower():
-            insert_cms(row[0], 'sharepoint')
-        if key_value[0].lower() == "x-powered-by":
-            insert_x_poewered_by(row[0], key_value[1].strip())
-            if "drupal" in key_value[1].strip().lower():
-                insert_cms(row[0], 'drupal')
-            if "express" in key_value[1].strip().lower():
-                insert_cms(row[0], 'expressjs')
-            if "statamic" in key_value[1].strip().lower():
-                insert_cms(row[0], 'statematic')
-            if "lynet" in key_value[1].strip().lower():
-                insert_cms(row[0], 'lynet')
-        if key_value[0].lower() == "x-generator":
-            if "drupal" in key_value[1].lower():
-                insert_cms(row[0], 'drupal')
-            elif "orchard" in key_value[1].lower():
-                insert_cms(row[0], 'orchard')
-            elif "synkron" in key_value[1].lower():
-                insert_cms(row[0], 'synkron')
-            else:
-                print("\nHey, do you know what this is?")
-                print(key_value[1])
+            if key == "server":
+                database.insert_server(domain_id, value)
+            if key == "strict-transport-security":
+                database.insert_hsts(domain_id, value)
 
-    row = fetch_cursor.fetchone()
+            key_clue = key_clue_search(key)
+            if key_clue != "-1":
+                database.insert_cms(domain_id, key_clue)
 
+            if key == "x-powered-by":
+                database.insert_x_poewered_by(domain_id, value)
+                x_result = x_power_search(value)
+                if x_result != "-1":
+                    database.insert_cms(domain_id, x_result)
+
+            if key == "x-generator":
+                x_gen_res = x_generator_search(value)
+                if x_gen_res != "-1":
+                    database.insert_cms(domain_id, x_gen_res)
+                else:
+                    print("\nHey, do you know what this is?")
+                    print(value)
+
+        row = cursor.fetchone()
+    cursor.close()
+    db.close()
