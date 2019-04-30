@@ -39,6 +39,13 @@ def insert_hsts(domain_id, policy):
     insert_db.commit()
 
 
+def insert_cms(domain_id, cms_system):
+    sql = """REPLACE INTO aau.identifiedcms (domain_id, cms_system, discovered) VALUES (%s, %s, NOW())"""
+    sql_params = (domain_id, cms_system)
+    insert_cursor.execute(sql, sql_params)
+    insert_db.commit()
+
+
 fetch_cursor.execute("SELECT domain_id, header FROM aau.httpheaders")
 row = fetch_cursor.fetchone()
 
@@ -57,11 +64,33 @@ while row is not None:
         if key_value[1].strip() == "":
             continue
         if key_value[0].lower() == "server":
-            insert_server(row[0], key_value[1])
+            insert_server(row[0], key_value[1].strip())
         if key_value[0].lower() == "strict-transport-security":
-            insert_hsts(row[0], key_value[1])
+            insert_hsts(row[0], key_value[1].strip())
+        if "x-drupal" in key_value[0].lower():
+            insert_cms(row[0], 'drupal')
+        if "x-aspnetmvc" in key_value[0].lower():
+            insert_cms(row[0], 'aspnetmvc')
+        if "sharepoint" in key_value[0].lower():
+            insert_cms(row[0], 'sharepoint')
         if key_value[0].lower() == "x-powered-by":
-            insert_x_poewered_by(row[0], key_value[1])
+            insert_x_poewered_by(row[0], key_value[1].strip())
+            if "drupal" in key_value[1].strip().lower():
+                insert_cms(row[0], 'drupal')
+            if "express" in key_value[1].strip().lower():
+                insert_cms(row[0], 'expressjs')
+            if "statamic" in key_value[1].strip().lower():
+                insert_cms(row[0], 'statematic')
+            if "lynet" in key_value[1].strip().lower():
+                insert_cms(row[0], 'lynet')
+        if key_value[0].lower() == "x-generator":
+            if "drupal" in key_value[1].lower():
+                insert_cms(row[0], 'drupal')
+            elif "orchard" in key_value[1].lower():
+                insert_cms(row[0], 'orchard')
+            else:
+                print("\nHey, do you know what this is?")
+                print(key_value[1])
 
     row = fetch_cursor.fetchone()
 
