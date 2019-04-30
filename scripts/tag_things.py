@@ -54,6 +54,8 @@ while row is not None:
         if header == "":
             continue
         key_value = header.split(":")
+        if key_value[1].strip() == "":
+            continue
         if key_value[0].lower() == "server":
             insert_server(row[0], key_value[1])
         if key_value[0].lower() == "strict-transport-security":
@@ -63,4 +65,3 @@ while row is not None:
 
     row = fetch_cursor.fetchone()
 
-progress_bar.finished()

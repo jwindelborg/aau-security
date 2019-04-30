@@ -122,4 +122,3 @@ while row is not None:
 
     row = fetch_cursor.fetchone()
 
-progress_bar.finished()
