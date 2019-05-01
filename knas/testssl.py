@@ -10,7 +10,6 @@ import database
 hostname = socket.gethostname()
 home = str(Path.home())
 
-threads_running = 0
 finished = False
 
 
@@ -94,8 +93,6 @@ def build_ssl_cert(file, domain_id):
 
 
 def process_a_domain(domain):
-    global threads_running
-    threads_running += 1
     print(domain[1])
     if os.path.exists(str(os.path.dirname(__file__)) + domain[1].rstrip()):
         os.remove(str(os.path.dirname(__file__)) + domain[1].rstrip())
@@ -110,7 +107,6 @@ def process_a_domain(domain):
     if os.path.exists(str(os.path.dirname(__file__)) + domain[1].rstrip()):
         os.remove(str(os.path.dirname(__file__)) + domain[1].rstrip())
     database.ssl_domain_log(domain[0], hostname)
-    threads_running -= 1
 
 
 def process_batch(threads_desired, domains_to_reserve):
@@ -124,7 +120,7 @@ def process_batch(threads_desired, domains_to_reserve):
         return
 
     while len(domains) >= 1:
-        if threads_running < threads_desired:
+        if threading.active_count()-1 < threads_desired:
             threading.Thread(target=process_a_domain, args=(domains.pop(0),),).start()
 
     database.ssl_unlock_domains(hostname)
