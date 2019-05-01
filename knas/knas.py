@@ -8,9 +8,6 @@ import testssl
 import sys
 import threading
 
-# Sry, but I don't know what else to do without pointers
-threads_running = 0
-
 
 def parser():
     p = argparse.ArgumentParser(description="KNAS's Not A Script!")
@@ -26,21 +23,15 @@ def parser():
 
 
 def run_parallel_action(action):
-    global threads_running
-    threads_running += 1
     if action == 'retirejs':
         retirejs.run()
     if action == 'tagcms':
         tag_cms.run()
     if action == 'tagfromhead':
         tag_from_headers.run()
-    threads_running -= 1
 
 
 def run_parallel(args):
-    global threads_running
-    threads_desired = args.threads
-
     actions_desired = []
     if args.retirejs:
         actions_desired.append('retirejs')
@@ -52,7 +43,7 @@ def run_parallel(args):
     while True:
         if len(actions_desired) < 1:
             break
-        if threads_running < threads_desired:
+        if threading.active_count()-1 < args.threads:
             threading.Thread(target=run_parallel_action, args=(actions_desired.pop(),), ).start()
 
 
