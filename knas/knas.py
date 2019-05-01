@@ -14,7 +14,7 @@ def parser():
     p.add_argument("--retirejs", dest='retirejs', action='store_true', help='Run retirejs')
     p.add_argument("--tag-cms", dest='tagcms', action='store_true', help='Scan JavaScript URLs to identify CMS')
     p.add_argument("--tag-from-head", dest='tagfromhead', action='store_true', help='Scan headers to identify CMS')
-    p.add_argument("-p", dest='make_parellel', action='store_true', default=False, help='Process in parallel')
+    p.add_argument("-p", dest='make_parallel', action='store_true', default=False, help='Process in parallel')
     p.add_argument("--threads", dest='threads', action='store', default=3, required=False, type=int, metavar='[3]', help='How many threads to run')
     p.add_argument("--scan-ssl", dest='scan_ssl', action='store_true', help='No, this is illegal')
     p.add_argument("--ssl-threads", dest='sslthreads', action='store', required=False, type=int, default=7, metavar='[7]', help='How many SSL scan threads to run')
@@ -64,7 +64,7 @@ def main():
         print("Sorry -p and --scan-ssl is currently not supported together")
         exit()
 
-    if args.make_parellel:
+    if args.make_parallel:
         run_parallel(args)
     else:
         if args.retirejs:
