@@ -8,17 +8,17 @@ import (
 
 func argParse(args []string) options {
 	var helpString = "Options for Nidan scanner:\n" +
-		"-h,--help\tThis\n" +
-		"-q\t\tQuite (suppress doing domain)\n" +
-		"--name [name]\tName of scan\n" +
-		"-p [9222]\tPort default 9222\n" +
-		"-w [worker]\tWorker default $HOST\n" +
-		"--no-scan\tDon't scan\n" +
-		"--no-pb\t\tNo Privacy Badger\n" +
-		"--old\t\tScan already visited\n" +
-		"--random\tOrder queue random\n" +
-		"--no-headers\tNo HTTP headers\n" +
-		"--chromium-name[chromium]\tName of chrome/chromium\n"
+		"-h,--help\t\tThis\n" +
+		"-q\t\t\tQuite (suppress doing domain)\n" +
+		"--name [name]\t\tName of scan\n" +
+		"-p [9222]\t\tPort default 9222\n" +
+		"-w [worker]\t\tWorker default $HOST\n" +
+		"--no-scan\t\tDon't scan\n" +
+		"--no-pb\t\t\tNo Privacy Badger\n" +
+		"--old\t\t\tScan already visited\n" +
+		"--random\t\tOrder queue random\n" +
+		"--no-headers\t\tNo HTTP headers\n" +
+		"--cdp-name[chromium]\tName of chrome/chromium\n"
 
 	var options options
 	options.scanLabel = "unnamed"
