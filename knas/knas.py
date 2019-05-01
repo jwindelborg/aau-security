@@ -5,6 +5,7 @@ import retirejs
 import tag_cms
 import tag_from_headers
 import testssl
+import sys
 
 
 def parser():
@@ -13,16 +14,20 @@ def parser():
     p.add_argument("--tag-cms", dest='tagcms', action='store_true', help='Scan JavaScript URLs to identify CMS')
     p.add_argument("--tag-from-head", dest='tagfromhead', action='store_true', help='Scan headers to identify CMS')
     p.add_argument("--scan-ssl", dest='scanssl', action='store_true', help='No, this is illegal')
-    return p.parse_args()
+    return p, p.parse_args()
 
 
 def main():
-    args = parser()
+    parse, args = parser()
+
+    if not len(sys.argv) > 1:
+        parse.print_help()
+
     if args.retirejs:
         retirejs.run()
     if args.tagcms:
         tag_cms.run()
-    if args.tagsfromhead:
+    if args.tagfromhead:
         tag_from_headers.run()
     if args.scanssl:
         testssl.process_batch(7)
