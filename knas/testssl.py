@@ -126,7 +126,7 @@ def process_batch(threads_desired, domains_to_reserve):
     database.ssl_unlock_domains(hostname)
 
 
-def run(threads, domains_to_reserve):
+def run(threads=7, domains_to_reserve=100):
     global finished
     while not finished:
         process_batch(threads, domains_to_reserve)

@@ -39,9 +39,8 @@ def run():
                     if "vulnerabilities" in data['main_theme']:
                         for vulnerability in data['main_theme']['vulnerabilities']:
                             vulnerability_id = make_vulnerability_id(vulnerability)
-                            if isinstance(vulnerability_id, str):
-                                database.insert_cms_vulnerability(vulnerability_id, vulnerability)
-                                database.insert_domain_cms_vulnerability(site[0], vulnerability_id)
+                            database.insert_cms_vulnerability(vulnerability_id, str(vulnerability))
+                            database.insert_domain_cms_vulnerability(site[0], vulnerability_id)
             except:
                 print('error')
             if "plugins" in data:
@@ -49,8 +48,7 @@ def run():
                     for plugin in data['plugins']:
                         for vulnerability in data['plugins'][plugin]['vulnerabilities']:
                             vulnerability_id = make_vulnerability_id(vulnerability)
-                            if isinstance(vulnerability_id, str):
-                                database.insert_cms_vulnerability(vulnerability_id, vulnerability)
-                                database.insert_domain_cms_vulnerability(site[0], vulnerability_id)
+                            database.insert_cms_vulnerability(vulnerability_id, str(vulnerability))
+                            database.insert_domain_cms_vulnerability(site[0], vulnerability_id)
                 except:
                     print("error")

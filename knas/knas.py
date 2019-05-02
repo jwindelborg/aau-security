@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-import retirejs
-import tag_cms
-import tag_from_headers
 import testssl
-import wordpress
 import sys
 import threading
 
@@ -24,38 +20,31 @@ def parser():
     return p, p.parse_args()
 
 
-def run_parallel_action(action):
-    if action == 'retirejs':
-        retirejs.run()
-    if action == 'tagcms':
-        tag_cms.run()
-    if action == 'tagfromhead':
-        tag_from_headers.run()
-    if action == 'wpscan':
-        wordpress.run()
+def run_module(action):
+    module = __import__(action)
+    module.run()()
 
 
-def run_parallel(args):
-    actions_desired = []
+def make_job_list(args):
+    jobs = []
     if args.retirejs:
-        actions_desired.append('retirejs')
+        jobs.append('retirejs')
     if args.tagcms:
-        actions_desired.append('tagcms')
+        jobs.append('tag_cms')
     if args.tagfromhead:
-        actions_desired.append('tagfromhead')
+        jobs.append('tag_from_headers')
     if args.wpscan:
-        actions_desired.append('wpscan')
-
-    while True:
-        if len(actions_desired) < 1:
-            break
-        if threading.active_count()-1 < args.threads:
-            threading.Thread(target=run_parallel_action, args=(actions_desired.pop(),), ).start()
+        jobs.append('wordpress')
+    return jobs
 
 
-def main():
-    pars, args = parser()
+def run_parallel_jobs(jobs, threads):
+    while len(jobs) > 0:
+        if threading.active_count()-1 < threads:
+            threading.Thread(target=run_module, args=(jobs.pop(),), ).start()
 
+
+def validate_args(pars, args):
     if not len(sys.argv) > 1:
         pars.print_help()
         exit()
@@ -70,19 +59,21 @@ def main():
         print("Sorry -p and --scan-ssl is currently not supported together")
         exit()
 
+
+def main():
+    pars, args = parser()
+    validate_args(pars, args)
+
+    jobs = make_job_list(args)
+
     if args.make_parallel:
-        run_parallel(args)
+        run_parallel_jobs(jobs, args.threads)
     else:
-        if args.retirejs:
-            retirejs.run()
-        if args.tagcms:
-            tag_cms.run()
-        if args.tagfromhead:
-            tag_from_headers.run()
-        if args.wpscan:
-            wordpress.run()
-        if args.scan_ssl:
-            testssl.process_batch(args.sslthreads, args.ssllocks)
+        for job in jobs:
+            run_module(job)
+
+    if args.scan_ssl:
+        testssl.run(args.sslthreads, args.ssllocks)
 
 
 if __name__ == "__main__":
