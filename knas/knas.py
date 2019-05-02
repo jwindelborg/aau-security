@@ -66,7 +66,7 @@ def main():
     if args.ssllocks != 100 and not args.scan_ssl:
         print("You should make up your mind!")
         exit()
-    if args.make_parellel and args.scan_ssl:
+    if args.make_parallel and args.scan_ssl:
         print("Sorry -p and --scan-ssl is currently not supported together")
         exit()
 
