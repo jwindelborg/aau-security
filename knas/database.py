@@ -74,6 +74,28 @@ def fetch_domains(hostname):
     return domains
 
 
+def fetch_wordpress_sites():
+    db, cursor = get_mysql_db_cursor()
+    stmt = """SELECT domain_id, domain FROM aau.domains WHERE domain_id IN (SELECT domain_id FROM aau.identifiedcms WHERE cms_system LIKE 'wordpress')"""
+    cursor.execute(stmt)
+    domains = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return domains
+
+
+def insert_cms_vulnerability(vulnerability_id, description):
+    stmt = """REPLACE INTO aau.cmsvulnerability (vulnerability_id, description, date_added) VALUES (%s, %s, NOW())"""
+    params = (vulnerability_id, description)
+    do_and_done(stmt, params)
+
+
+def insert_domain_cms_vulnerability(domain_id, vulnerability_id):
+    stmt = """REPLACE INTO aau.domainscmsvulnerabilities (domain_id, vulnerability_id, vulnerability_discovered) VALUES (%s, %s, NOW())"""
+    params = (domain_id, vulnerability_id)
+    do_and_done(stmt, params)
+
+
 def ssl_lock_domains(amount, worker):
     stmt = """INSERT IGNORE INTO aau.ssllock (domain_id, worker, locked_at)
                     SELECT domains.domain_id, %s AS 'worker', NOW()

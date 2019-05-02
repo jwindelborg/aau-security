@@ -5,6 +5,7 @@ import retirejs
 import tag_cms
 import tag_from_headers
 import testssl
+import wordpress
 import sys
 import threading
 
@@ -14,6 +15,7 @@ def parser():
     p.add_argument("--retirejs", dest='retirejs', action='store_true', help='Run retirejs')
     p.add_argument("--tag-cms", dest='tagcms', action='store_true', help='Scan JavaScript URLs to identify CMS')
     p.add_argument("--tag-from-head", dest='tagfromhead', action='store_true', help='Scan headers to identify CMS')
+    p.add_argument("--wpscan", dest='wpscan', action='store_true', help='Scan for WordPress vulnerabilities')
     p.add_argument("-p", dest='make_parallel', action='store_true', default=False, help='Process in parallel')
     p.add_argument("--threads", dest='threads', action='store', default=3, required=False, type=int, metavar='[3]', help='How many threads to run')
     p.add_argument("--scan-ssl", dest='scan_ssl', action='store_true', help='No, this is illegal')
@@ -29,6 +31,8 @@ def run_parallel_action(action):
         tag_cms.run()
     if action == 'tagfromhead':
         tag_from_headers.run()
+    if action == 'wpscan':
+        wordpress.run()
 
 
 def run_parallel(args):
@@ -39,6 +43,8 @@ def run_parallel(args):
         actions_desired.append('tagcms')
     if args.tagfromhead:
         actions_desired.append('tagfromhead')
+    if args.wpscan:
+        actions_desired.append('wpscan')
 
     while True:
         if len(actions_desired) < 1:
@@ -73,6 +79,8 @@ def main():
             tag_cms.run()
         if args.tagfromhead:
             tag_from_headers.run()
+        if args.wpscan:
+            wordpress.run()
         if args.scan_ssl:
             testssl.process_batch(args.sslthreads, args.ssllocks)
 
