@@ -50,14 +50,11 @@ def validate_args(pars, args):
         exit()
 
     if args.sslthreads != 7 and not args.scan_ssl:
-        print("You should make up your mind!")
-        exit()
+        exit("You should make up your mind!")
     if args.ssllocks != 100 and not args.scan_ssl:
-        print("You should make up your mind!")
-        exit()
+        exit("You should make up your mind!")
     if args.make_parallel and args.scan_ssl:
-        print("Sorry -p and --scan-ssl is currently not supported together")
-        exit()
+        exit("Sorry -p and --scan-ssl is currently not supported together")
 
 
 def main():
