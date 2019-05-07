@@ -48,7 +48,6 @@ func runSubCommand(server string, version string) response {
 		CVE: realList,
 	}
 
-
 }
 
 func validServer(server string) bool {
