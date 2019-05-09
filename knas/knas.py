@@ -17,6 +17,7 @@ def parser():
     p.add_argument("--scan-ssl", dest='scan_ssl', action='store_true', help='No, this is illegal')
     p.add_argument("--ssl-threads", dest='sslthreads', action='store', required=False, type=int, default=7, metavar='[7]', help='How many SSL scan threads to run')
     p.add_argument("--ssl-locks", dest='ssllocks', action='store', required=False, type=int, default=100, metavar='[100]', help='How many domains to lock at a time')
+    p.add_argument("--add-serversoftware-vulnerabilities", dest='linkservervuln', action='store_true', required=False, help='add vulnerabilities to existing server softwares')
     return p, p.parse_args()
 
 
@@ -35,6 +36,8 @@ def make_job_list(args):
         jobs.append('tag_from_headers')
     if args.wpscan:
         jobs.append('wordpress')
+    if args.linkservervuln:
+        jobs.append('linkservervuln')
     return jobs
 
 

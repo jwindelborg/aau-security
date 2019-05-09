@@ -2,7 +2,7 @@
 
 from ezprogress.progressbar import ProgressBar
 import database
-
+import linkservervuln
 
 def x_power_search(s):
     associations = [
@@ -70,13 +70,13 @@ def run():
 
             if key == "server":
                 database.insert_server(domain_id, value)
+                linkservervuln(value)
             if key == "strict-transport-security":
                 database.insert_hsts(domain_id, value)
 
             key_clue = key_clue_search(key)
             if key_clue != "-1":
                 database.insert_cms(domain_id, key_clue)
-
             if key == "x-powered-by":
                 database.insert_x_poewered_by(domain_id, value)
                 x_result = x_power_search(value)
