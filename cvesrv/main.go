@@ -5,35 +5,47 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"strings"
 	"unicode"
 )
 
-type question struct {
+type search struct {
 	Server string
 	Version string
 	APIKey string
 }
 
-type response struct {
+type searchResponse struct {
 	CVE []string
 }
 
+type searchCVE struct {
+	CVE string
+	APIKey string
+}
+
+type cveResponse struct {
+	CVE string
+	CVESS float64
+	Summary string
+}
+
 func main() {
-	http.HandleFunc("/", lookupCVE)
+	http.HandleFunc("/search/", lookupCVE)
+	http.HandleFunc("/cve/", returnCVE)
 
 	if err := http.ListenAndServe(":9876", nil); err != nil {
 		panic(err)
 	}
 }
 
-func runSubCommand(server string, version string) response {
+func runSearchCommand(server string, version string) searchResponse {
 	out, err := exec.Command("/root/cve-search/bin/search.py",
 		"-p", server + ":" + version,
 		"-o", "cveid",
 		"--only-if-vulnerable").Output()
 	if err != nil {
-		log.Print("Problem, we can't run this")
 		log.Print(err)
 	}
 	outList := strings.Split(string(out), "\n")
@@ -44,10 +56,31 @@ func runSubCommand(server string, version string) response {
 		}
 	}
 
-	return response {
+	return searchResponse {
 		CVE: realList,
 	}
 
+}
+
+func runCVECommand(cve string) cveResponse {
+	stdout, err := exec.Command("/root/cve-search/bin/search.py",
+		"-c", cve,
+		"-o", "csv").Output()
+	if err != nil {
+		return cveResponse{}
+	}
+
+	output := strings.Split(string(stdout), "|")
+	cvess, err := strconv.ParseFloat(output[2], 64)
+	if err != nil {
+		return cveResponse{}
+	}
+
+	return cveResponse{
+		CVE:     output[0],
+		CVESS:   cvess,
+		Summary: output[3],
+	}
 }
 
 func validServer(server string) bool {
@@ -72,9 +105,34 @@ func validVersion(version string) bool {
 	return true
 }
 
+func isValidCVE(cve string) bool {
+
+	if len(cve) <= 10 || len(cve) >= 20 {
+		return false
+	}
+
+	if cve[0:4] != "CVE-" || cve[8:9] != "-" {
+		return false
+	}
+
+	for _ ,n := range cve[4:8] {
+		if !(n >= 0x30 && n <= 0x39) {
+			return false
+		}
+	}
+
+	for _, n := range cve[9:] {
+		if !(n >= 0x30 && n <= 0x39) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func lookupCVE(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var q question
+	var q search
 	err := decoder.Decode(&q)
 	if err != nil {
 		log.Print(err)
@@ -94,7 +152,32 @@ func lookupCVE(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	answer := runSubCommand(q.Server, q.Version)
+	answer := runSearchCommand(q.Server, q.Version)
+
+	err = json.NewEncoder(w).Encode(answer)
+	if err != nil { log.Print(err) }
+}
+
+func returnCVE(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var q searchCVE
+	err := decoder.Decode(&q)
+	if err != nil {
+		log.Print("Decode error")
+		log.Print(err)
+		return
+	}
+
+	// We don't want to waste resources answering other peoples queries
+	if q.APIKey != "2MdW6E3dEXKasutaskRhmDhW99XP5bAWKewk9EMPZFG7T" {
+		return
+	}
+
+	if !isValidCVE(q.CVE) {
+		return
+	}
+
+	answer := runCVECommand(q.CVE)
 
 	err = json.NewEncoder(w).Encode(answer)
 	if err != nil { log.Print(err) }
