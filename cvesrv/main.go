@@ -27,7 +27,7 @@ type searchCVE struct {
 
 type cveResponse struct {
 	CVE string
-	CVESS float64
+	CVSS float64
 	Summary string
 }
 
@@ -71,19 +71,19 @@ func runCVECommand(cve string) cveResponse {
 	}
 
 	output := strings.Split(string(stdout), "|")
-	cvess, err := strconv.ParseFloat(output[2], 64)
+	cvss, err := strconv.ParseFloat(output[2], 64)
 	if err != nil {
 		return cveResponse{}
 	}
 
 	return cveResponse{
 		CVE:     output[0],
-		CVESS:   cvess,
+		CVSS:    cvss,
 		Summary: output[3],
 	}
 }
 
-func validServer(server string) bool {
+func isValidServer(server string) bool {
 	for _, r := range server {
 		if !unicode.IsLetter(r) &&
 			!(r >= 0x30 && r <= 0x39) &&
@@ -94,7 +94,7 @@ func validServer(server string) bool {
 	return true
 }
 
-func validVersion(version string) bool {
+func isValidVersion(version string) bool {
 	for _, r := range version {
 		if !unicode.IsLetter(r) &&
 			r != 0x2e &&
@@ -144,11 +144,11 @@ func lookupCVE(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !validServer(q.Server) {
+	if !isValidServer(q.Server) {
 		return
 	}
 
-	if !validVersion(q.Version) {
+	if !isValidVersion(q.Version) {
 		return
 	}
 
