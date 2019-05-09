@@ -70,7 +70,7 @@ def run():
 
             if key == "server":
                 database.insert_server(domain_id, value)
-                linkservervuln(value)
+                linkservervuln.run_list(value)
             if key == "strict-transport-security":
                 database.insert_hsts(domain_id, value)
 

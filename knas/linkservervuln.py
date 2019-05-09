@@ -2,14 +2,14 @@
 #import os
 import database
 import json
-import requests
 import re
 import requests
 
 # api: 142.93.109.128:9876
 key = "2MdW6E3dEXKasutaskRhmDhW99XP5bAWKewk9EMPZFG7T"
 
-def run(serverlist):
+
+def run_list(serverlist):
     serverlist = re.sub("( ?\([^)]*\))", "", serverlist)  # delete all parentheses and their content
     serverlist = serverlist.lower()
     serverlist = serverlist.split(" ")
@@ -33,7 +33,7 @@ def run(serverlist):
 def run():
     softwarelist = database.fetch_serversoftwares()
     for software in softwarelist:
-        run(software)
+        run_list(software)
     return
 
 
