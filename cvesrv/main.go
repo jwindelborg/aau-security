@@ -86,8 +86,9 @@ func runCVECommand(cve string) cveResponse {
 func isValidServer(server string) bool {
 	for _, r := range server {
 		if !unicode.IsLetter(r) &&
-			!(r >= 0x30 && r <= 0x39) &&
-			r != 0x5f {
+			!unicode.IsNumber(r) &&
+			r != '_' &&
+			r != ':' {
 			return false
 		}
 	}
@@ -97,14 +98,21 @@ func isValidServer(server string) bool {
 func isValidVersion(version string) bool {
 	for _, r := range version {
 		if !unicode.IsLetter(r) &&
-			r != 0x2e &&
-			!(r >= 0x30 && r <= 0x39) {
+			!unicode.IsNumber(r) &&
+			r != '.' &&
+			r != '-' {
 			return false
 		}
 	}
 	return true
 }
 
+/* Verify CVE
+ * Valid CVE example: CVE-2014-4725
+ * Structure always CVE-YYYY-NNNN
+ * The last numbers is an ID with
+ * variable length.
+ */
 func isValidCVE(cve string) bool {
 
 	if len(cve) <= 10 || len(cve) >= 20 {
@@ -115,14 +123,16 @@ func isValidCVE(cve string) bool {
 		return false
 	}
 
+	// We could be more pedantic and say
+	// every year must start with a '1' or a '2'
 	for _ ,n := range cve[4:8] {
-		if !(n >= 0x30 && n <= 0x39) {
+		if !unicode.IsNumber(n) {
 			return false
 		}
 	}
 
 	for _, n := range cve[9:] {
-		if !(n >= 0x30 && n <= 0x39) {
+		if !unicode.IsNumber(n) {
 			return false
 		}
 	}
