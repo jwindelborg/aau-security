@@ -211,7 +211,7 @@ def insert_serversoftware_server_vulnerabilities(cve, software):
 
 def fetch_serversoftwares():
     db, cursor = get_mysql_db_cursor()
-    stmt = """SELECT DISTINCT software FROM aau.serversoftware"""
+    stmt = """SELECT DISTINCT software FROM aau.serversoftware LIMIT 10"""
     cursor.execute(stmt)
     domains = cursor.fetchall()
     cursor.close()

@@ -3,6 +3,8 @@ import database
 import json
 import re
 import requests
+from ezprogress.progressbar import ProgressBar
+
 
 # api: 142.93.109.128:9876
 key = "2MdW6E3dEXKasutaskRhmDhW99XP5bAWKewk9EMPZFG7T"
@@ -19,7 +21,6 @@ def run_list(input):
         if "/" in serv:
             requestlist = serv.split('/')
             requestlist[0] = requestlist[0].replace("-", ":").replace("+", " ")  #cve-search uses : instead of -. some sites write their server software list with + instead of space-separating
-            print(requestlist[0])
             if len(requestlist) is not 2 or requestlist[1] is "":
                 continue
             requestdata = {"Server": requestlist[0], "Version": requestlist[1], "APIKey": key}
@@ -41,11 +42,17 @@ def run_list(input):
                 database.insert_server_vulnerability(entry, float(cveresponse_json["CVSS"]),
                                                      cveresponse_json["Summary"])
                 database.insert_serversoftware_server_vulnerabilities(entry, serv)
-    return
 
 
 def run():
     softwarelist = database.fetch_serversoftwares()
+    print(softwarelist)
+    number_of_uniques = len(softwarelist)
+    progress_bar = ProgressBar(number_of_uniques, bar_length=100)
+    progress_bar.start()
+    progress_point = 0
+
     for software in softwarelist:
+        progress_point += 1
+        progress_bar.update(progress_point)
         run_list(software)
-    return
