@@ -22,8 +22,8 @@ def parser():
 
 
 def run_module(action):
-    module = __import__(action)
-    module.run()()
+    _module = __import__(action)
+    _module.run()
 
 
 def make_job_list(args):
