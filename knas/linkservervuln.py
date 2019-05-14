@@ -15,7 +15,8 @@ def run_list(server_raw):
     server_list = server_list.split(" ")
 
     for server in server_list:
-
+        if server is "":
+            continue
         if "/" in server:
             request_list = server.split('/')
             request_list[0] = request_list[0].replace("-", ":").replace("+", " ")  # cve-search uses : instead of -. some sites write their server software list with + instead of space-separating
