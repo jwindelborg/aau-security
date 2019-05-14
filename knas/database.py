@@ -181,11 +181,13 @@ def count_rows(table):
     db.close()
     return number
 
+
 def insert_server_software(domain_id, software, version):
     software_hash = sha3.sha3_224(str(software + version).encode('utf-8')).hexdigest()
     stmt = """INSERT IGNORE INTO aau.server_software (software_hash, domain_id, software, version, created_at) VALUES (%s, %s, %s, %s, NOW())"""
     params = (software_hash, domain_id, software, version)
     do_and_done(stmt, params)
+
 
 def insert_server_vulnerability(cve, score, description):
     stmt = """INSERT IGNORE INTO aau.server_vulnerabilities (cve, score, cve_description, created_at) VALUES (%s, %s, %s, NOW())"""
@@ -201,7 +203,7 @@ def insert_server_has_server_vulnerability(cve, software):
 
 def fetch_server_softwares_raw():
     db, cursor = get_mysql_db_cursor()
-    stmt = """SELECT DISTINCT domain_id, software FROM aau.server_software_raw"""
+    stmt = """SELECT domain_id, software FROM aau.server_software_raw"""
     cursor.execute(stmt)
     domains = cursor.fetchall()
     cursor.close()
