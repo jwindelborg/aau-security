@@ -35,7 +35,7 @@ def run():
         progress_point += 1
         progress_bar.update(progress_point)
         with open("js_tmp/tmp.js", 'w+') as f:
-            f.write(row[0])
+            f.write(row[1])
         subprocess_response = subprocess.run(["retire",
                                               "--verbose",
                                               "--outputformat",
@@ -66,7 +66,7 @@ def run():
                                                               severity(vulnerability["severity"]))
                                 database.insert_library(library_id, library, version)
                                 database.insert_vulnerability_js_relation(library_id, vulnerability_id)
-                                database.insert_js_library_relation(row[1], library_id)
+                                database.insert_js_library_relation(row[0], library_id)
             else:
                 real_string = str(subprocess_response.stdout.decode("utf-8"))
                 javascript_data = json.loads(real_string)
@@ -78,9 +78,9 @@ def run():
                         library_id = sha3.sha3_224(str(library + version).encode('utf-8')).hexdigest()
 
                         database.insert_library(library_id, library, version)
-                        database.insert_js_library_relation(row[1], library_id)
+                        database.insert_js_library_relation(row[0], library_id)
         except:
-            print("Could not handle " + row[1])
+            print("Could not handle " + row[0])
 
         row = cursor.fetchone()
     os.remove('js_tmp/tmp.js')
