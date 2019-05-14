@@ -43,13 +43,13 @@ def key_clue_search(s):
 
 
 def run():
-    number_of_headers = database.count_rows("httpheaders")
+    number_of_headers = database.count_rows("http_headers")
     progress_bar = ProgressBar(number_of_headers, bar_length=100)
     progress_bar.start()
     progress_point = 0
 
     db, cursor = database.get_mysql_db_cursor()
-    cursor.execute("SELECT domain_id, header FROM aau.httpheaders")
+    cursor.execute("SELECT domain_id, header FROM aau.http_headers")
     row = cursor.fetchone()
 
     while row is not None:
@@ -71,7 +71,7 @@ def run():
 
             if key == "server":
                 database.insert_server(domain_id, value)
-                linkservervuln.run_list(value)
+                linkservervuln.run_list((domain_id, value))
             if key == "strict-transport-security":
                 database.insert_hsts(domain_id, value)
 

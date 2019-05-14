@@ -12,14 +12,14 @@ func javaScriptToDB(domain Domain, script JavaScript, options options) dwarf.Voi
 		log.Fatal(err)
 	}
 
-	sqlJs := `INSERT IGNORE INTO javascripts (script, scriptHash, javascriptDiscovered) VALUES (?, ?, NOW());`
-	_, err = db.Exec(sqlJs, script.script, script.hash)
+	sqlJs := `INSERT IGNORE INTO javascripts (javascript_hash, script, created_at) VALUES (?, ?, NOW());`
+	_, err = db.Exec(sqlJs, script.hash, script.script)
 	if err != nil {
 		log.Printf("javaScriptToDB: Error inserting JS into DB for external script: " + script.hash)
 		log.Print(err)
 	}
 
-	sqlJsRel := `INSERT IGNORE INTO javascriptdomains (domain_id, scriptHash, url, is_external, scan_label) VALUES (?, ?, ?, ?, ?);`
+	sqlJsRel := `INSERT IGNORE INTO domain_has_javascripts (domain_id, javascript_hash, url, is_external, scan_label) VALUES (?, ?, ?, ?, ?);`
 	_, err = db.Exec(sqlJsRel, domain.id, script.hash, script.url, script.isExternal, options.scanLabel)
 	if err != nil {
 		log.Printf("javaScriptToDB: Could not insert JS relation into DB for external script: " + script.hash)
@@ -40,7 +40,7 @@ func cookieToDB(domain Domain, cookie DomainCookie, options options) dwarf.VoidT
 		log.Fatal(err)
 	}
 
-	s := `INSERT IGNORE INTO cookies (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only, cookie_added, scan_label) VALUES (?, ?, ?, ?, ?, ?, ?, now(), ?);`
+	s := `INSERT IGNORE INTO cookies (domain_id, cookie_name, cookie_value, cookie_domain, cookie_expire, is_secure, is_http_only, created_at, scan_label) VALUES (?, ?, ?, ?, ?, ?, ?, now(), ?);`
 	_, err = db.Exec(s, domain.id, cookie.name, cookie.value, cookie.domain, cookie.expires, cookie.secure, cookie.httpOnly, options.scanLabel)
 	if err != nil {
 		log.Printf("cookieToDB: Could not save cookie")
@@ -62,13 +62,13 @@ func domainVisitHistory(workerName string, options options) dwarf.VoidType {
 		log.Fatal(err)
 	}
 
-	stmt := `INSERT INTO domainvisithistory (domain_id, worker, time_processed, scan_label) SELECT domain_id, ?, NOW(), ? FROM lockeddomains WHERE worker = ?;`
+	stmt := `INSERT INTO cdp_visit_history (domain_id, worker, created_at, scan_label) SELECT domain_id, ?, NOW(), ? FROM locked_domains WHERE worker = ?;`
 	_, err = db.Exec(stmt, workerName, options.scanLabel, workerName)
 	if err != nil {
 		log.Printf("domainVisitHistory: Could not update history")
 		log.Print(err)
 	}
-	stmt2 := `DELETE FROM lockeddomains WHERE worker = ?;`
+	stmt2 := `DELETE FROM locked_domains WHERE worker = ?;`
 	_, err = db.Exec(stmt2, workerName)
 	if err != nil {
 		log.Printf("domainVisitHistory: Could not delete locks")
@@ -90,7 +90,7 @@ func privacyBadgerToDB(topDomainID int, isRed int, domain string, options option
 		log.Fatal(err)
 	}
 
-	s := `INSERT IGNORE INTO privacyBadger (domain_id, is_red, concerning, accessed, scan_label) VALUES (?, ?, ?, now(), ?);`
+	s := `INSERT IGNORE INTO privacy_badger_actions (domain_id, is_red, concerning, created_at, scan_label) VALUES (?, ?, ?, now(), ?);`
 	_, err = db.Exec(s, topDomainID, isRed, domain, options.scanLabel)
 	if err != nil {
 		log.Printf("privacyBadgerToDB: Could not save Privacy Badger data")
@@ -112,7 +112,7 @@ func httpHeaderToDB(topDomainID int, url string, headers string, options options
 		log.Fatal(err)
 	}
 
-	s := `INSERT IGNORE INTO httpheaders (domain_id, request_url, scan_label, added, header) VALUES (?, ?, ?, now(), ?);`
+	s := `INSERT IGNORE INTO http_headers (domain_id, request_url, scan_label, created_at, header) VALUES (?, ?, ?, now(), ?);`
 	_, err = db.Exec(s, topDomainID, url, options.scanLabel, headers)
 	if err != nil {
 		log.Printf("httpHeaderToDB: Could not save HTTP header")
