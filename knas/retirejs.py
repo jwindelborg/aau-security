@@ -31,17 +31,21 @@ def run():
     progress_bar.start()
     progress_point = 0
 
+    try:
+        os.mkdir('/tmp/knas')
+    except OSError:
+        pass
     while row is not None:
         progress_point += 1
         progress_bar.update(progress_point)
-        with open("js_tmp/tmp.js", 'w+') as f:
+        with open("/tmp/knas/tmp.js", 'w+') as f:
             f.write(row[1])
         subprocess_response = subprocess.run(["retire",
                                               "--verbose",
                                               "--outputformat",
                                               "json",
                                               "--jspath",
-                                              "js_tmp/"
+                                              "/tmp/knas/"
                                               ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         try:
@@ -83,7 +87,7 @@ def run():
             print("Could not handle " + row[0])
 
         row = cursor.fetchone()
-    os.remove('js_tmp/tmp.js')
-    os.rmdir('js_tmp')
+    os.remove('/tmp/knas/tmp.js')
+    os.rmdir('/tmp/knas')
     cursor.close()
     db.close()
