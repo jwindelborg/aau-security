@@ -38,11 +38,11 @@ def run_list(server_raw):
                 cve_response_json = cve_response.json()
                 database.insert_server_vulnerability(entry, float(cve_response_json["CVSS"]),
                                                      cve_response_json["Summary"])
-                database.insert_serversoftware_server_vulnerabilities(entry, server)
+                database.insert_server_has_server_vulnerability(entry, server)
 
 
 def run():
-    software_list = database.fetch_serversoftwares()
+    software_list = database.fetch_server_softwares()
     number_of_uniques = len(software_list)
     progress_bar = ProgressBar(number_of_uniques, bar_length=100)
     progress_bar.start()

@@ -315,11 +315,11 @@ func loadDomainQueue(workerName string, options options) []Domain {
 
 	var lockStmt string
 	if options.scanOld {
-		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains WHERE scan_label = ?)`
+		lockStmt = `INSERT INTO locked_domains (domain_id, worker, created_at, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM locked_domains WHERE scan_label = ?)`
 		if options.random { lockStmt += ` ORDER BY rand() LIMIT ?;`	} else { lockStmt += ` LIMIT ?;` }
 		_, err = db.Exec(lockStmt, workerName, options.scanLabel, options.scanLabel, queueReserved)
 	} else {
-		lockStmt = `INSERT INTO lockeddomains (domain_id, worker, locked_time, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM lockeddomains WHERE scan_label = ?) AND domain_id NOT IN (SELECT domain_id FROM domainvisithistory WHERE scan_label = ?)`;
+		lockStmt = `INSERT INTO locked_domains (domain_id, worker, created_at, scan_label) SELECT domains.domain_id, ? AS 'worker', NOW(), ? FROM domains WHERE domain_id NOT IN (SELECT domain_id FROM locked_domains WHERE scan_label = ?) AND domain_id NOT IN (SELECT domain_id FROM cdp_visit_history WHERE scan_label = ?)`
 		if options.random { lockStmt += ` ORDER BY rand() LIMIT ?;`	} else { lockStmt += ` LIMIT ?;` }
 		_, err = db.Exec(lockStmt, workerName, options.scanLabel, options.scanLabel, options.scanLabel, queueReserved)
 	}
@@ -329,7 +329,7 @@ func loadDomainQueue(workerName string, options options) []Domain {
 		log.Print(err)
 	}
 
-	rows, err := db.QueryContext(ctx, "SELECT domain_id, domain FROM domains WHERE domain_id IN (SELECT domain_id FROM lockeddomains WHERE worker = ?);", workerName)
+	rows, err := db.QueryContext(ctx, "SELECT domain_id, domain FROM domains WHERE domain_id IN (SELECT domain_id FROM locked_domains WHERE worker = ?);", workerName)
 	if err != nil {
 		log.Fatal(err)
 	}
