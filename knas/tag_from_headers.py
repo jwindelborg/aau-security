@@ -4,6 +4,7 @@ from ezprogress.progressbar import ProgressBar
 import database
 import linkservervuln
 
+
 def x_power_search(s):
     associations = [
         ("drupal", "drupal"),

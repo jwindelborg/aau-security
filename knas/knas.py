@@ -22,13 +22,8 @@ def parser():
 
 
 def run_module(action):
-    try:
-        module = __import__(action)
-        module.run()()
-    except ImportError:
-        print("Fuck, package not found")
-        print(action)
-        exit()
+    _module = __import__(action)
+    _module.run()
 
 
 def make_job_list(args):
