@@ -1,6 +1,6 @@
 # Our new database conventions
 
-The rules described in this document takes precedence, antyhing not specified here follow [https://www.sqlstyle.guide/](sqlstyle.guide). In case of any doubt use common sense.
+The rules described in this document takes precedence, antyhing not specified here follow [sqlstyle.guide](https://www.sqlstyle.guide/). In case of any doubt use common sense.
 
 # Naming conventions
 
