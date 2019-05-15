@@ -195,9 +195,10 @@ def insert_server_vulnerability(cve, score, description):
     do_and_done(stmt, params)
 
 
-def insert_server_has_server_vulnerability(cve, software):
-    stmt = """INSERT IGNORE INTO aau.server_software_has_server_vulnerabilities (cve, software_affected) VALUES (%s, %s)"""
-    params = (cve, software)
+def insert_server_has_server_vulnerability(cve, software, version):
+    software_hash = sha3.sha3_224(str(software + version).encode('utf-8')).hexdigest()
+    stmt = """INSERT IGNORE INTO aau.server_software_has_server_vulnerabilities (cve, software_hash) VALUES (%s, %s)"""
+    params = (cve, software_hash)
     do_and_done(stmt, params)
 
 

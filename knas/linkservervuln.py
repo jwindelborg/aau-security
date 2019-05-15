@@ -41,7 +41,7 @@ def run_list(server_raw):
                 cve_response_json = cve_response.json()
                 database.insert_server_vulnerability(entry, float(cve_response_json["CVSS"]),
                                                      cve_response_json["Summary"])
-                database.insert_server_has_server_vulnerability(entry, server)
+                database.insert_server_has_server_vulnerability(entry, request_list[0], request_list[1])
             database.insert_server_software(server_raw[0], request_list[0], request_list[1])
 
         else:
