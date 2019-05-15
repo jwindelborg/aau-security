@@ -71,7 +71,6 @@ def run():
 
             if key == "server":
                 linkservervuln.make_server_software(domain_id, value)
-                linkservervuln.run_list((domain_id, value))
             if key == "strict-transport-security":
                 database.insert_hsts(domain_id, value)
 
@@ -79,7 +78,7 @@ def run():
             if key_clue != "-1":
                 database.insert_cms(domain_id, key_clue)
             if key == "x-powered-by":
-                database.insert_x_poewered_by(domain_id, value)
+                database.insert_x_powered_by(domain_id, value)
                 x_result = x_power_search(value)
                 if x_result != "-1":
                     database.insert_cms(domain_id, x_result)

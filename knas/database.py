@@ -51,7 +51,7 @@ def insert_server(domain_id, server):
     do_and_done(sql, params)
 
 
-def insert_x_poewered_by(domain_id, x_powered_by):
+def insert_x_powered_by(domain_id, x_powered_by):
     sql = """INSERT IGNORE INTO aau.powered_by (domain_id, x_powered_by, created_at) VALUES (%s, %s, NOW())"""
     params = (domain_id, x_powered_by)
     do_and_done(sql, params)

@@ -21,11 +21,12 @@ def make_server_software(domain_id, raw):
             request_list[0] = request_list[0].replace("-", ":").replace("+", " ")  # cve-search uses : instead of -. some sites write their server software list with + instead of space-separating
             if len(request_list) is 2 and request_list[1] is not "":
                 database.insert_server_software(domain_id, request_list[0], request_list[1])
+                link_vulnerabilities(request_list[0], request_list[1])
                 continue
             database.insert_server_software(domain_id, server, "")
 
 
-def run_list(software, version):
+def link_vulnerabilities(software, version):
     request_data = {"Server": software, "Version": version, "APIKey": key}
     request_data_json = json.dumps(request_data)
 
@@ -57,4 +58,4 @@ def run():
     for entry in software_list:
         progress_point += 1
         progress_bar.update(progress_point)
-        run_list(entry[0], entry[1])
+        link_vulnerabilities(entry[0], entry[1])
