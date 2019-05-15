@@ -202,9 +202,9 @@ def insert_server_has_server_vulnerability(cve, software, version):
     do_and_done(stmt, params)
 
 
-def fetch_server_softwares_raw():
+def fetch_server_software():
     db, cursor = get_mysql_db_cursor()
-    stmt = """SELECT domain_id, software FROM aau.server_software_raw"""
+    stmt = """SELECT software, version FROM aau.server_software"""
     cursor.execute(stmt)
     domains = cursor.fetchall()
     cursor.close()
