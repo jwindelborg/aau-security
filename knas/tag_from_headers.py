@@ -50,9 +50,11 @@ def run():
 
     db, cursor = database.get_mysql_db_cursor()
     cursor.execute("SELECT domain_id, header FROM aau.http_headers")
-    row = cursor.fetchone()
+    rows = cursor.fetchall()
+    cursor.close()
+    db.close()
 
-    while row is not None:
+    for row in rows:
         progress_point += 1
         progress_bar.update(progress_point)
         headers = row[1].split("\n")
@@ -70,8 +72,7 @@ def run():
                 continue
 
             if key == "server":
-                database.insert_server(domain_id, value)
-                linkservervuln.run_list((domain_id, value))
+                linkservervuln.make_server_software(domain_id, value)
             if key == "strict-transport-security":
                 database.insert_hsts(domain_id, value)
 
@@ -79,7 +80,7 @@ def run():
             if key_clue != "-1":
                 database.insert_cms(domain_id, key_clue)
             if key == "x-powered-by":
-                database.insert_x_poewered_by(domain_id, value)
+                database.insert_x_powered_by(domain_id, value)
                 x_result = x_power_search(value)
                 if x_result != "-1":
                     database.insert_cms(domain_id, x_result)
@@ -91,7 +92,3 @@ def run():
                 else:
                     print("\nHey, do you know what this is?")
                     print(value)
-
-        row = cursor.fetchone()
-    cursor.close()
-    db.close()

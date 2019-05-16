@@ -51,7 +51,7 @@ def insert_server(domain_id, server):
     do_and_done(sql, params)
 
 
-def insert_x_poewered_by(domain_id, x_powered_by):
+def insert_x_powered_by(domain_id, x_powered_by):
     sql = """INSERT IGNORE INTO aau.powered_by (domain_id, x_powered_by, created_at) VALUES (%s, %s, NOW())"""
     params = (domain_id, x_powered_by)
     do_and_done(sql, params)
@@ -195,15 +195,16 @@ def insert_server_vulnerability(cve, score, description):
     do_and_done(stmt, params)
 
 
-def insert_server_has_server_vulnerability(cve, software):
-    stmt = """INSERT IGNORE INTO aau.server_software_has_server_vulnerabilities (cve, software_affected) VALUES (%s, %s)"""
-    params = (cve, software)
+def insert_server_has_server_vulnerability(cve, software, version):
+    software_hash = sha3.sha3_224(str(software + version).encode('utf-8')).hexdigest()
+    stmt = """INSERT IGNORE INTO aau.server_software_has_server_vulnerabilities (cve, software_hash) VALUES (%s, %s)"""
+    params = (cve, software_hash)
     do_and_done(stmt, params)
 
 
-def fetch_server_softwares_raw():
+def fetch_server_software():
     db, cursor = get_mysql_db_cursor()
-    stmt = """SELECT domain_id, software FROM aau.server_software_raw"""
+    stmt = """SELECT software, version FROM aau.server_software"""
     cursor.execute(stmt)
     domains = cursor.fetchall()
     cursor.close()
