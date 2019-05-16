@@ -10,7 +10,7 @@ key = "2MdW6E3dEXKasutaskRhmDhW99XP5bAWKewk9EMPZFG7T"
 
 
 def make_server_software(domain_id, raw):
-    server_list = re.sub("( ?\([^)]*\))", "", raw)  # delete all parentheses and their content
+    server_list = re.sub(r"( ?\([^)]*\))", "", raw)  # delete all parentheses and their content
     server_list = server_list.lower()
     server_list = server_list.split(" ")
     for server in server_list:
@@ -23,7 +23,8 @@ def make_server_software(domain_id, raw):
                 database.insert_server_software(domain_id, request_list[0], request_list[1])
                 link_vulnerabilities(request_list[0], request_list[1])
                 continue
-            database.insert_server_software(domain_id, server, "")
+        server = server.replace('/', '')
+        database.insert_server_software(domain_id, server, "")
 
 
 def link_vulnerabilities(software, version):

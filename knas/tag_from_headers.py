@@ -50,9 +50,11 @@ def run():
 
     db, cursor = database.get_mysql_db_cursor()
     cursor.execute("SELECT domain_id, header FROM aau.http_headers")
-    row = cursor.fetchone()
+    rows = cursor.fetchall()
+    cursor.close()
+    db.close()
 
-    while row is not None:
+    for row in rows:
         progress_point += 1
         progress_bar.update(progress_point)
         headers = row[1].split("\n")
@@ -90,7 +92,3 @@ def run():
                 else:
                     print("\nHey, do you know what this is?")
                     print(value)
-
-        row = cursor.fetchone()
-    cursor.close()
-    db.close()
