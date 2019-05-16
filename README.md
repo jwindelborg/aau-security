@@ -5,6 +5,10 @@ Web application security project
 
 A tool for scanning a huge range of web sites for security related issues, such as using an outdated JavaScript library.
 
+## Database conventions
+
+See [new_db_conventions.md](https://github.com/jwindelborg/aau-security/new_db_conventions.md)
+
 ## PyWare
 
 Tool for analyzing JavaScript malware
