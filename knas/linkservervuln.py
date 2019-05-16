@@ -11,14 +11,13 @@ key = "2MdW6E3dEXKasutaskRhmDhW99XP5bAWKewk9EMPZFG7T"
 
 def make_server_software(domain_id, raw):
     server_list = re.sub(r"( ?\([^)]*\))", "", raw)  # delete all parentheses and their content
-    server_list = server_list.lower()
-    server_list = server_list.split(" ")
+    server_list = server_list.lower().replace("+", " ").replace(";", " ").split(" ")
     for server in server_list:
         if server is "":
             continue
         if "/" in server:
             request_list = server.split('/')
-            request_list[0] = request_list[0].replace("-", ":").replace("+", " ")  # cve-search uses : instead of -. some sites write their server software list with + instead of space-separating
+            request_list[0] = request_list[0].replace("-", ":")  # cve-search uses : instead of -
             if len(request_list) is 2 and request_list[1] is not "":
                 database.insert_server_software(domain_id, request_list[0], request_list[1])
                 link_vulnerabilities(request_list[0], request_list[1])
