@@ -306,7 +306,7 @@ func loadDomainQueue(workerName string, options options) []Domain {
 		log.Fatal(err)
 	}
 
-	cleanStmt := `DELETE FROM lockeddomains WHERE worker = ?`
+	cleanStmt := `DELETE FROM locked_domains WHERE worker = ?`
 	_, err = db.Exec(cleanStmt, workerName)
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not delete from locked")
