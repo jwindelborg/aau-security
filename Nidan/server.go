@@ -32,7 +32,9 @@ func runServer(options options) {
 	http.HandleFunc("/", privacyBadgerDebug)
 
 	if err := http.ListenAndServe(":9000", nil); err != nil {
-		panic(err)
+		log.Print(err)
+		log.Print("Could not start SRV, port probably already in use")
+		return
 	}
 }
 
