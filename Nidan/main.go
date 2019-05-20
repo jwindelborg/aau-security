@@ -29,7 +29,6 @@ var queueReserved = 10
 var curDomID = 0
 
 func main() {
-	print(connString)
 	channel := make(chan string)
 
 	options := argParse(os.Args)
