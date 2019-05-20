@@ -1,9 +1,14 @@
 import mysql.connector
 import sha3
+from secretparser import secretparser
+
+host = secretparser("HOST")
+user = secretparser("USER")
+passwd = secretparser("PASSWD")
 
 
 def get_mysql_db_cursor():
-    db = mysql.connector.connect(host="142.93.109.128", user="aau", passwd="2387AXumK52aeaSA")
+    db = mysql.connector.connect(host=host, user=user, passwd=passwd)
     return db, db.cursor()
 
 

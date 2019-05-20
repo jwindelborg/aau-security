@@ -23,12 +23,13 @@ import (
 	"time"
 )
 
-var connString = "aau:2387AXumK52aeaSA@tcp(142.93.109.128:3306)/aau"
+var connString = secretparser()
 var siteWorstCase = 100*time.Second
 var queueReserved = 10
 var curDomID = 0
 
 func main() {
+	print(connString)
 	channel := make(chan string)
 
 	options := argParse(os.Args)

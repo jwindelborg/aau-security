@@ -4,9 +4,10 @@ import json
 import re
 import requests
 from ezprogress.progressbar import ProgressBar
+from secretparser import secretparser
 
-# api: 142.93.109.128:9876
-key = "2MdW6E3dEXKasutaskRhmDhW99XP5bAWKewk9EMPZFG7T"
+api = secretparser("API")
+key = secretparser("KEY")
 
 
 def make_server_software(domain_id, raw):
@@ -31,7 +32,7 @@ def link_vulnerabilities(software, version):
     request_data_json = json.dumps(request_data)
 
     try:
-        response = requests.get("http://142.93.109.128:9876/search/", data=request_data_json)
+        response = requests.get(api + "/search/", data=request_data_json)
         cve_list = response.json()
     except:
         print("Illegal chars in string")
@@ -41,7 +42,7 @@ def link_vulnerabilities(software, version):
     for entry in cve_list["CVE"]:
         cve_data = {"CVE": entry, "APIKey": key}
         cve_data_json = json.dumps(cve_data)
-        cve_response = requests.get("http://142.93.109.128:9876/cve/", data=cve_data_json)
+        cve_response = requests.get(api + "/cve/", data=cve_data_json)
         cve_response_json = cve_response.json()
         database.insert_server_vulnerability(entry, float(cve_response_json["CVSS"]),
                                              cve_response_json["Summary"])
