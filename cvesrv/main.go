@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"unicode"
+	"github.com/Thomasdezeeuw/ini"
 )
 
 type search struct {
@@ -150,7 +152,7 @@ func lookupCVE(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// We don't want to waste resources answering other peoples queries
-	if q.APIKey != "2MdW6E3dEXKasutaskRhmDhW99XP5bAWKewk9EMPZFG7T" {
+	if q.APIKey != secretparser() {
 		return
 	}
 
@@ -179,7 +181,7 @@ func returnCVE(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// We don't want to waste resources answering other peoples queries
-	if q.APIKey != "2MdW6E3dEXKasutaskRhmDhW99XP5bAWKewk9EMPZFG7T" {
+	if q.APIKey != secretparser() {
 		return
 	}
 
@@ -191,4 +193,20 @@ func returnCVE(w http.ResponseWriter, r *http.Request) {
 
 	err = json.NewEncoder(w).Encode(answer)
 	if err != nil { log.Print(err) }
+}
+
+func secretparser() string {
+	f, err := os.Open("../.env")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	config, err := ini.Parse(f)
+	if err != nil {
+		log.Fatal()
+	}
+
+	return config[ini.Global]["KEY"]
+
 }
