@@ -7,16 +7,15 @@ import (
 	"path/filepath"
 	"strings"
 )
-func secretparser() string{
+
+func configurationParser() string{
 	path, err := filepath.Abs("../.env")
 	if err != nil {
 		log.Fatal(err)
-		return "Error loading file."
 	}
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatal(err)
-		return "Error loading file."
 	}
 	defer file.Close()
 
@@ -32,8 +31,8 @@ func secretparser() string{
 		if strings.Contains(scanner.Text(), "USER") {
 			username = strings.Replace(scanner.Text(), "USER" + "=", "", -1)
 		}
-		if strings.Contains(scanner.Text(), "PASSWD") {
-			password = strings.Replace(scanner.Text(), "PASSWD" + "=", "", -1)
+		if strings.Contains(scanner.Text(), "PASSWORD") {
+			password = strings.Replace(scanner.Text(), "PASSWORD" + "=", "", -1)
 		}
 		if strings.Contains(scanner.Text(), "HOST") {
 			host = strings.Replace(scanner.Text(), "HOST" + "=", "", -1)

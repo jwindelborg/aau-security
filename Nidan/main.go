@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-var connString = secretparser()
+var connString = configurationParser()
 var siteWorstCase = 100*time.Second
 var queueReserved = 10
 var curDomID = 0
@@ -353,12 +353,12 @@ func loadDomainQueue(workerName string, options options) []Domain {
 	err = rows.Close()
 	if err != nil {
 		log.Print(err)
-		log.Fatal("LoadDomainsDB: Could not close rows")
+		log.Fatal("LoadDomainQueue: Could not close rows")
 	}
 	err = db.Close()
 	if err != nil {
 		log.Print(err)
-		log.Fatal("LoadDomainsDB: Could not close DB conn")
+		log.Fatal("LoadDomainQueue: Could not close DB conn")
 	}
 	return domains
 }

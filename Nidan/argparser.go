@@ -59,19 +59,19 @@ func argParse(args []string) options {
 			if len(args) > i {
 				options.port = args[i+1]
 			} else {
-				log.Fatal("You have as many braincells as you have port values")
+				log.Fatal("You need to specify a port value")
 			}
 		case "-w":
 			if len(args) > i {
 				options.worker = args[i+1]
 			} else {
-				log.Fatal("You have as many braincells as you have worker names")
+				log.Fatal("You need to specify a worker name")
 			}
 		case "--chromium-name":
 			if len(args) > i {
 				options.chromeName = args[i+1]
 			} else {
-				log.Fatal("You are pretty stupid")
+				log.Fatal("You need to specify a chromium application name")
 			}
 		}
 	}
