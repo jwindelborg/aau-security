@@ -2,7 +2,7 @@
 import os
 
 
-def secretparser(secret):
+def configuration_parser(secret):
     path = os.path.join(os.path.dirname(__file__), "../.env")
 
     with open(path) as f:

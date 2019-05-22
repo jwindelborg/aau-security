@@ -2,7 +2,7 @@
 
 from ezprogress.progressbar import ProgressBar
 import database
-import linkservervuln
+import link_server_vulnerability
 
 
 def x_power_search(s):
@@ -72,7 +72,7 @@ def run():
                 continue
 
             if key == "server":
-                linkservervuln.make_server_software(domain_id, value)
+                link_server_vulnerability.make_server_software(domain_id, value)
             if key == "strict-transport-security":
                 database.insert_hsts(domain_id, value)
 
