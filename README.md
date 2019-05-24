@@ -5,6 +5,12 @@ Web application security project
 
 A tool for scanning a huge range of web sites for security related issues, such as using an outdated JavaScript library.
 
+## Privacy Badger fork for Nidan
+
+See [jwindelborg/privacybadger](https://github.com/jwindelborg/privacybadger/)
+
+This fork sends information regarding actions to a HTTP listener while not editing or blocking anything in Chrome.
+
 ## Database conventions
 
 See [new_db_conventions.md](https://github.com/jwindelborg/aau-security/new_db_conventions.md)
