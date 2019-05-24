@@ -1,27 +1,22 @@
-create schema aau collate latin1_swedish_ci;
+create schema aau collate utf8_general_ci;
 
 create table cms_vulnerabilities
 (
-	vulnerability_id varchar(250) not null
-		primary key,
-	description text null,
+	vulnerability_id varchar(250) not null primary key,
+	description text not null,
 	created_at datetime null
 );
 
 create table domains
 (
-	domain_id int auto_increment
-		primary key,
+	domain_id int auto_increment primary key,
 	domain varchar(128) not null,
-	title varchar(256) not null,
 	created_at timestamp default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
-)
-charset=utf8;
+);
 
 create table cdp_visit_history
 (
-	history_id int auto_increment
-		primary key,
+	history_id int auto_increment primary key,
 	domain_id int null,
 	worker varchar(253) null,
 	created_at datetime null,
@@ -29,8 +24,7 @@ create table cdp_visit_history
 	constraint domain_id_foregin_key
 		foreign key (domain_id) references domains (domain_id)
 			on update cascade
-)
-charset=utf8;
+);
 
 create table cookies
 (
@@ -47,8 +41,7 @@ create table cookies
 	constraint cookies_domain_id
 		foreign key (domain_id) references domains (domain_id)
 			on update cascade on delete cascade
-)
-charset=utf8;
+);
 
 create index domain_id
 	on cookies (domain_id);
@@ -69,8 +62,7 @@ create table domain_has_cms_vulnerabilities
 
 create table hsts_policies
 (
-	domain_id int not null
-		primary key,
+	domain_id int not null primary key,
 	policy varchar(250) null,
 	created_at datetime null,
 	constraint htst_domain_id
@@ -84,7 +76,7 @@ create table http_headers
 	request_url varchar(1000) not null,
 	scan_label varchar(50) not null,
 	created_at datetime null,
-	header text null,
+	header text not null,
 	primary key (domain_id, request_url, scan_label),
 	constraint http_header_domain_id
 		foreign key (domain_id) references domains (domain_id)
@@ -93,8 +85,7 @@ create table http_headers
 
 create table identified_cms
 (
-	domain_id int not null
-		primary key,
+	domain_id int not null primary key,
 	cms_system varchar(250) null,
 	created_at datetime null,
 	constraint identified_cms_domain_id
@@ -104,22 +95,18 @@ create table identified_cms
 
 create table javascript_vulnerabilities
 (
-	vulnerability_id varchar(512) not null
-		primary key,
+	vulnerability_id varchar(512) not null primary key,
 	vulnerability_description text not null,
 	severity int not null,
 	created_at datetime null
-)
-charset=utf8;
+);
 
 create table javascripts
 (
-	javascript_hash varchar(1000) not null
-		primary key,
+	javascript_hash varchar(1000) not null primary key,
 	script longtext not null,
 	created_at datetime null
-)
-charset=utf8;
+);
 
 create table domain_has_javascripts
 (
@@ -136,13 +123,11 @@ create table domain_has_javascripts
 	constraint domain_has_javascript_javascript
 		foreign key (javascript_hash) references javascripts (javascript_hash)
 			on update cascade on delete cascade
-)
-charset=utf8;
+);
 
 create table javascript_analyzes
 (
-	analyze_id int auto_increment
-		primary key,
+	analyze_id int auto_increment primary key,
 	javascript_hash varchar(1000) null,
 	analytic_tool varchar(512) null,
 	worker varchar(253) null,
@@ -150,18 +135,15 @@ create table javascript_analyzes
 	constraint javascript_analyzes_hash
 		foreign key (javascript_hash) references javascripts (javascript_hash)
 			on update cascade on delete cascade
-)
-charset=utf8;
+);
 
 create table libraries
 (
-	library_id varchar(60) not null
-		primary key,
+	library_id varchar(60) not null primary key,
 	library_name varchar(60) not null,
 	library_version varchar(60) not null,
 	created_at datetime null
-)
-charset=utf8;
+);
 
 create table javascript_is_library
 (
@@ -175,8 +157,7 @@ create table javascript_is_library
 	constraint javascript_is_library_library
 		foreign key (library_id) references libraries (library_id)
 			on update cascade on delete cascade
-)
-charset=utf8;
+);
 
 create table library_has_vulnerabilities
 (
@@ -190,8 +171,7 @@ create table library_has_vulnerabilities
 	constraint library_has_vulnerability_vuln_id
 		foreign key (vulnerability_id) references javascript_vulnerabilities (vulnerability_id)
 			on update cascade on delete cascade
-)
-charset=utf8;
+);
 
 create table locked_domains
 (
@@ -203,8 +183,7 @@ create table locked_domains
 	constraint locked_domains_domain_id
 		foreign key (domain_id) references domains (domain_id)
 			on update cascade on delete cascade
-)
-charset=utf8;
+);
 
 create table locked_ssl_scan
 (
@@ -215,13 +194,11 @@ create table locked_ssl_scan
 	constraint locked_ssl_scan_domain_id
 		foreign key (domain_id) references domains (domain_id)
 			on update cascade on delete cascade
-)
-charset=utf8;
+);
 
 create table powered_by
 (
-	domain_id int not null
-		primary key,
+	domain_id int not null primary key,
 	x_powered_by varchar(250) null,
 	created_at datetime null,
 	constraint powered_by_domain_id
@@ -257,8 +234,7 @@ create table server_software
 
 create table server_vulnerabilities
 (
-	cve varchar(250) not null
-		primary key,
+	cve varchar(250) not null primary key,
 	score decimal(3,1) null,
 	cve_description text null,
 	created_at datetime not null
@@ -302,18 +278,15 @@ create table ssl_properties
 	constraint ssl_properties_domain_id
 		foreign key (domain_id) references domains (domain_id)
 			on update cascade on delete cascade
-)
-charset=utf8;
+);
 
 create table ssl_scan_history
 (
-	history_id int auto_increment
-		primary key,
+	history_id int auto_increment primary key,
 	worker varchar(250) null,
 	domain_id int null,
 	created_at datetime null,
 	constraint ssl_scan_history_domain_id
 		foreign key (domain_id) references domains (domain_id)
 			on update cascade on delete cascade
-)
-charset=utf8;
+);
