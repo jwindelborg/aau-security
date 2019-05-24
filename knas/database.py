@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import mysql.connector
 import sha3
 from configurations import configuration_parser

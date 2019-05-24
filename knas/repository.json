@@ -1,0 +1,30 @@
+{
+    "cms_file_path_associations": [
+        [ "/wp-content/", "wordpress" ],
+        [ "/wp-includes/", "wordpress" ],
+        [ "sitevision", "sitevision" ],
+        [ "drupal", "drupal" ],
+        [ "/sites/default/files/", "drupal" ],
+        [ "/catalog/view/theme/", "opencart" ],
+        [ "com_virtuemart", "joomla_virtuemart" ],
+        [ "sitecore", "sitecore" ],
+        [ "symfony", "symfony" ],
+        [ "magestore", "magento" ]
+    ],
+    "x_power_cms_associations": [
+        [ "drupal", "drupal" ],
+        [ "express", "expressjs" ],
+        [ "statamic", "statamic" ],
+        [ "lynet", "lynet" ]
+    ],
+    "x_generator_associations": [
+        [ "drupal", "drupal" ],
+        [ "orchard", "orchard" ],
+        [ "synkron", "synkron" ]
+    ],
+    "header_key_associations": [
+        [ "x-drupal", "drupal" ],
+        [ "x-aspnetmvc", "aspnetmvc" ],
+        [ "sharepoint", "sharepoint" ]
+    ]
+}

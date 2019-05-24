@@ -3,40 +3,25 @@
 from ezprogress.progressbar import ProgressBar
 import database
 import link_server_vulnerability
+from configurations import repository
 
 
 def x_power_search(s):
-    associations = [
-        ("drupal", "drupal"),
-        ("express", "expressjs"),
-        ("statamic", "statamic"),
-        ("lynet", "lynet")
-    ]
-    for key, value in associations:
+    for key, value in repository['x_power_cms_associations']:
         if key in s:
             return value
     return "-1"
 
 
 def x_generator_search(s):
-    associations = [
-        ("drupal", "drupal"),
-        ("orchard", "orchard"),
-        ("synkron", "synkron")
-    ]
-    for key, value in associations:
+    for key, value in repository['x_generator_associations']:
         if key in s:
             return value
     return "-1"
 
 
 def key_clue_search(s):
-    associations = [
-        ("x-drupal", "drupal"),
-        ("x-aspnetmvc", "aspnetmvc"),
-        ("sharepoint", "sharepoint")
-    ]
-    for key, value in associations:
+    for key, value in repository['header_key_associations']:
         if key in s:
             return value
     return "-1"

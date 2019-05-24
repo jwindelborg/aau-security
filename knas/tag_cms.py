@@ -2,22 +2,11 @@
 
 from ezprogress.progressbar import ProgressBar
 import database
+from configurations import repository
 
 
 def search(s):
-    associations = [
-        ("/wp-content/", "wordpress"),
-        ("/wp-includes/", "wordpress"),
-        ("sitevision", "sitevision"),
-        ("drupal", "drupal"),
-        ("/sites/default/files/", "drupal"),
-        ("/catalog/view/theme/", "opencart"),
-        ("com_virtuemart", "joomla_virtuemart"),
-        ("sitecore", "sitecore"),
-        ("symfony", "symfony"),
-        ("magestore", "magento")
-    ]
-    for key, value in associations:
+    for key, value in repository['cms_file_path_associations']:
         if key in s:
             return value
     return "-1"

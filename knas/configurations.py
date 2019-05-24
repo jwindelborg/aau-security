@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+
 import os
+import json
 
 
 def configuration_parser(secret):
@@ -9,3 +11,7 @@ def configuration_parser(secret):
         for line in f:
             if secret in line:
                 return line.replace(secret + "=", "").replace("\n", "")
+
+
+with open('repository.json') as data_file:
+    repository = json.load(data_file)

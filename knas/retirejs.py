@@ -87,7 +87,13 @@ def run():
             print("Could not handle " + row[0])
 
         row = cursor.fetchone()
-    os.remove('/tmp/knas/tmp.js')
-    os.rmdir('/tmp/knas')
+    try:
+        os.remove('/tmp/knas/tmp.js')
+    except OSError:
+        pass
+    try:
+        os.rmdir('/tmp/knas')
+    except OSError:
+        pass
     cursor.close()
     db.close()
