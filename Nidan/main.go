@@ -25,7 +25,7 @@ import (
 
 var connString = configurationParser()
 var siteWorstCase = 100*time.Second
-var queueReserved = 10
+var queueReserved = 500
 var curDomID = 0
 
 func main() {
@@ -70,6 +70,7 @@ func startAndHandleChrome(channel chan string, options options) {
 		"--remote-debugging-port=" + options.port,
 		"--disable-gpu",
 		"--headless",
+		"--no-sandbox", // Required to run as root
 		)
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
