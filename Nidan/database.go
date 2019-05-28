@@ -84,6 +84,34 @@ func domainVisitHistory(workerName string, options options) dwarf.VoidType {
 	return dwarf.VoidType{}
 }
 
+func domainVisitedHistory(options options, domain Domain) dwarf.VoidType {
+	db, err := sql.Open("mysql", connString)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stmt := `INSERT INTO cdp_visit_history (domain_id, worker, created_at, scan_label) VALUES (?, ?, NOW(), ?)`
+	_, err = db.Exec(stmt, domain.id, options.worker, options.scanLabel)
+	if err != nil {
+		log.Printf("domainVisitedHistory: Could not update history")
+		log.Print(err)
+	}
+	stmt2 := `DELETE FROM locked_domains WHERE domain_id = ?;`
+	_, err = db.Exec(stmt2, domain.id)
+	if err != nil {
+		log.Printf("domainVisitedHistory: Could not delete lock")
+		log.Print(err)
+	}
+
+	err = db.Close()
+	if err != nil {
+		log.Print(err)
+		log.Fatal("domainVisitedHistory: Could not close DB conn")
+	}
+
+	return dwarf.VoidType{}
+}
+
 func privacyBadgerToDB(topDomainID int, isRed int, domain string, options options) dwarf.VoidType {
 	db, err := sql.Open("mysql", connString)
 	if err != nil {

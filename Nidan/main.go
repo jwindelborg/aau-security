@@ -52,9 +52,9 @@ func main() {
 			curDomID = domain.id
 			doDomain(domain, options.port, channel, options)
 		}
-		if options.doScan {
-			domainVisitHistory(options.worker, options)
-		}
+		//if options.doScan {
+		//	domainVisitHistory(options.worker, options)
+		//}
 	}
 	log.Printf("No more domains to process!")
 	channel <- "done"
@@ -132,6 +132,8 @@ func doDomain(domain Domain, port string, channel chan string, options options) 
 		}
 		checkChrome = true
 	}
+
+	domainVisitedHistory(options, domain)
 
 	//region Chrome setup
 	ctx, cancel := context.WithTimeout(context.Background(), siteWorstCase)

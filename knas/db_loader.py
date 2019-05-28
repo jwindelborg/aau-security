@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 
-from configurations import configuration_parser
 import threading
 import database
-
-host = configuration_parser("HOST")
-user = configuration_parser("USER")
-password = configuration_parser("PASSWORD")
 
 
 def check_then_insert(domain):
