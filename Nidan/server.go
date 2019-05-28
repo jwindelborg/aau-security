@@ -33,8 +33,8 @@ func runServer(options options) {
 
 	if err := http.ListenAndServe(":9000", nil); err != nil {
 		log.Print(err)
-		log.Print("Could not start SRV, port probably already in use")
-		return
+		log.Fatal("Could not start SRV, port probably already in use")
+		//return // No, this is fatal, we don't want data pollution
 	}
 }
 

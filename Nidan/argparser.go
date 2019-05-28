@@ -14,7 +14,7 @@ func argParse(args []string) options {
 		"-p [9222]\t\tPort default 9222\n" +
 		"-w [worker]\t\tWorker default $HOST\n" +
 		"--no-scan\t\tDon't scan\n" +
-		"--no-pb\t\t\tNo Privacy Badger\n" +
+		"--pb\t\t\tDo Privacy Badger\n" +
 		"--old\t\t\tScan already visited\n" +
 		"--random\t\tOrder queue random\n" +
 		"--no-headers\t\tNo HTTP headers\n" +
@@ -25,7 +25,7 @@ func argParse(args []string) options {
 	options.port = "9222"
 	options.worker, _ = os.Hostname()
 	options.doScan = true
-	options.doPB = true
+	options.doPB = false
 	options.scanOld = false
 	options.random = false
 	options.quite = false

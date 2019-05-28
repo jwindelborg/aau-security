@@ -63,7 +63,14 @@ func main() {
 func startAndHandleChrome(channel chan string, options options) {
 
 	// xvfb-run chromium --load-extension=~/privacybadger/src/ --remote-debugging-port=9222 --disable-gpu
-	cmd := exec.Command("xvfb-run", options.chromeName, "--load-extension=~/privacybadger/src/", "--remote-debugging-port=" + options.port, "--disable-gpu")
+	cmd := exec.Command(
+		//"xvfb-run",
+		options.chromeName,
+		//"--load-extension=~/privacybadger/src/",
+		"--remote-debugging-port=" + options.port,
+		"--disable-gpu",
+		"--headless",
+		)
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
