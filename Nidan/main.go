@@ -122,8 +122,9 @@ func doDomain(domain Domain, port string, channel chan string, options options) 
 			channel <- "fix"
 			log.Printf("Chrome not up, let's wait for a moment")
 			log.Print(err)
-			time.Sleep(10*time.Second)
-			continue
+			log.Fatal("Chrome dead lets stop")
+			//time.Sleep(10*time.Second)
+			//continue
 		} else if chromeUp.StatusCode != 200 {
 			channel <- "fix"
 			log.Printf("Chrome not up, let's wait for status code 200")
@@ -337,6 +338,7 @@ func loadDomainQueue(workerName string, options options) []Domain {
 	if err != nil {
 		log.Printf("LoadDomainQueue: Could not lock domains")
 		log.Print(err)
+		log.Fatal("No domains locked lets die")
 	}
 
 	rows, err := db.QueryContext(ctx, "SELECT domain_id, domain FROM domains WHERE domain_id IN (SELECT domain_id FROM locked_domains WHERE worker = ?);", workerName)

@@ -95,6 +95,7 @@ func domainVisitedHistory(options options, domain Domain) dwarf.VoidType {
 	if err != nil {
 		log.Printf("domainVisitedHistory: Could not update history")
 		log.Print(err)
+		log.Fatal("Could not update history, lets die")
 	}
 	stmt2 := `DELETE FROM locked_domains WHERE domain_id = ?;`
 	_, err = db.Exec(stmt2, domain.id)
