@@ -19,7 +19,7 @@ func javaScriptToDB(domain Domain, script JavaScript, options options) dwarf.Voi
 		log.Print(err)
 	}
 
-	sqlJsRel := `INSERT IGNORE INTO domain_has_javascripts (domain_id, javascript_hash, url, is_external, scan_label) VALUES (?, ?, ?, ?, ?);`
+	sqlJsRel := `INSERT IGNORE INTO domain_has_javascripts (domain_id, javascript_hash, url, is_external, scan_label, created_at) VALUES (?, ?, ?, ?, ?, NOW());`
 	_, err = db.Exec(sqlJsRel, domain.id, script.hash, script.url, script.isExternal, options.scanLabel)
 	if err != nil {
 		log.Printf("javaScriptToDB: Could not insert JS relation into DB for external script: " + script.hash)
