@@ -3,6 +3,7 @@
 import subprocess
 import threading
 import socket
+import sys
 
 
 def run_my_nidan(name, worker, port):
@@ -12,7 +13,13 @@ def run_my_nidan(name, worker, port):
 
 
 def main():
-    threads = 5
+    if sys.argv[1] is not "":
+        if str.isdigit(sys.argv[1]):
+            threads = int(sys.argv[1])
+        else:
+            exit("invalid argument. Please input number of desired number of instances")
+    else:
+        threads = 5
     name = "nidanfull"
     worker = socket.gethostname()
     for i in range(threads):
@@ -21,3 +28,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
