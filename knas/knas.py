@@ -37,7 +37,7 @@ def make_job_list(args):
     if args.wpscan:
         jobs.append('wordpress')
     if args.linkservervuln:
-        jobs.append('linkservervuln')
+        jobs.append('link_server_vulnerability')
     return jobs
 
 

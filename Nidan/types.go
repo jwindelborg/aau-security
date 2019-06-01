@@ -32,4 +32,5 @@ type options struct {
 	quite      bool
 	scanLabel  string
 	chromeName string
+	queueSize  uint
 }

@@ -11,6 +11,7 @@ func argParse(args []string) options {
 		"-h,--help\t\tThis\n" +
 		"-q\t\t\tQuite (suppress doing domain)\n" +
 		"--name [name]\t\tName of scan\n" +
+		"-n [500]\t\tNumber of Chrome instances" +
 		"-p [9222]\t\tPort default 9222\n" +
 		"-w [worker]\t\tWorker default $HOST\n" +
 		"--no-scan\t\tDon't scan\n" +
@@ -30,6 +31,7 @@ func argParse(args []string) options {
 	options.random = false
 	options.quite = false
 	options.doHeaders = true
+	options.queueSize = 500
 	options.chromeName = guessDefaultChromiumName()
 
 	for i, arg := range args {
@@ -72,6 +74,14 @@ func argParse(args []string) options {
 				options.chromeName = args[i+1]
 			} else {
 				log.Fatal("You need to specify a chromium application name")
+			}
+		case "-n":
+			if len(args) > i {
+				var nr int
+				if _, err := fmt.Sscanf(args[i+1], "id:%5d", &nr); err == nil {
+					fmt.Println(i) // Outputs 123
+				}
+				options.queueSize = uint(nr)
 			}
 		}
 	}

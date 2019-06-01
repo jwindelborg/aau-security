@@ -2,11 +2,14 @@
 
 import mysql.connector
 import sha3
+import socket
 from configurations import configuration_parser
 
 host = configuration_parser("HOST")
 user = configuration_parser("USER")
 password = configuration_parser("PASSWORD")
+
+worker = socket.gethostname()
 
 
 def get_mysql_db_cursor():
@@ -25,6 +28,12 @@ def do_and_done(query, params):
 def insert_vulnerability(id_vulnerability, vulnerability_description, vulnerability_severity):
     sql = """INSERT IGNORE INTO aau.javascript_vulnerabilities (vulnerability_id, vulnerability_description, severity, created_at) VALUES (%s, %s, %s, NOW())"""
     params = (id_vulnerability, vulnerability_description, vulnerability_severity)
+    do_and_done(sql, params)
+
+
+def javascript_analyzes_retire(js_hash):
+    sql = "INSERT IGNORE INTO aau.javascript_analyzes (javascript_hash, analytic_tool, worker, created_at) VALUE (%s, 'retirejs', %s, NOW())"
+    params = (js_hash, worker)
     do_and_done(sql, params)
 
 
@@ -104,7 +113,7 @@ def insert_domain_cms_vulnerability(domain_id, vulnerability_id):
     do_and_done(stmt, params)
 
 
-def ssl_lock_domains(amount, worker):
+def ssl_lock_domains(amount, work):
     stmt = """INSERT IGNORE INTO aau.locked_ssl_scan (domain_id, worker, created_at)
                     SELECT domains.domain_id, %s AS 'worker', NOW()
                     FROM aau.domains
@@ -117,7 +126,7 @@ def ssl_lock_domains(amount, worker):
                         SELECT domain_id
                         FROM aau.ssl_scan_history)
                     ORDER BY RAND() LIMIT %s;"""
-    params = (worker, amount)
+    params = (work, amount)
     do_and_done(stmt, params)
 
 
@@ -179,9 +188,12 @@ def ssl_save_data(ssl_cert):
     do_and_done(stmt, params)
 
 
-def count_rows(table):
+def count_rows(table, is_external=False):
     db, cursor = get_mysql_db_cursor()
-    sql = "SELECT COUNT(*) FROM aau." + table
+    if is_external:
+        sql = "SELECT COUNT(*) FROM aau.domain_has_javascripts whERE is_external = 1"
+    else:
+        sql = "SELECT COUNT(*) FROM aau." + table
     cursor.execute(sql)
     number = cursor.fetchall()[0][0]
     cursor.close()
@@ -213,7 +225,7 @@ def fetch_server_software():
     db, cursor = get_mysql_db_cursor()
     stmt = """SELECT software, version FROM aau.server_software"""
     cursor.execute(stmt)
-    domains = cursor.fetchall()
+    server_software = cursor.fetchall()
     cursor.close()
     db.close()
-    return domains
+    return server_software
