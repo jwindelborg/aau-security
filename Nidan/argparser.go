@@ -11,7 +11,7 @@ func argParse(args []string) options {
 		"-h,--help\t\tThis\n" +
 		"-q\t\t\tQuite (suppress doing domain)\n" +
 		"--name [name]\t\tName of scan\n" +
-		"-n [500]\t\tNumber of Chrome instances" +
+		"-n [500]\t\tNumber of Chrome instances\n" +
 		"-p [9222]\t\tPort default 9222\n" +
 		"-w [worker]\t\tWorker default $HOST\n" +
 		"--no-scan\t\tDon't scan\n" +
