@@ -7,8 +7,6 @@ import sha3
 import os
 import database
 
-ok_lets_stop = False
-
 
 def severity(severity_str):
     if severity_str == "none":
@@ -23,16 +21,23 @@ def severity(severity_str):
         return 4
 
 
-def do_small_batch(reverse=False):
-    global ok_lets_stop
-    # progress_total = database.count_rows('javascripts')
-    progress_total = 10000
+def run(reverse=False):
+    progress_total = database.count_rows('javascripts')
     db, cursor = database.get_mysql_db_cursor()
     if reverse:
-        cursor.execute(
-            "SELECT * FROM aau.javascripts WHERE javascript_hash NOT IN (SELECT javascript_hash FROM aau.javascript_analyzes WHERE analytic_tool = 'retirejs') ORDER BY javascript_hash DESC LIMIT 10000")
+        stmt = "SELECT * " \
+               "FROM " + database.database + ".javascripts " \
+               "WHERE javascript_hash NOT IN " \
+               "(SELECT javascript_hash " \
+               "FROM aau.javascript_analyzes " \
+               "WHERE analytic_tool = 'retirejs') "
     else:
-        cursor.execute("SELECT * FROM aau.javascripts WHERE javascript_hash NOT IN (SELECT javascript_hash FROM aau.javascript_analyzes WHERE analytic_tool = 'retirejs') LIMIT 10000")
+        stmt = "SELECT * FROM " + database.database + ".javascripts " \
+               "WHERE javascript_hash NOT IN " \
+               "(SELECT javascript_hash " \
+               "FROM " + database.database + ".javascript_analyzes " \
+               "WHERE analytic_tool = 'retirejs')"
+    cursor.execute(stmt)
     row = cursor.fetchone()
 
     progress_bar = ProgressBar(progress_total, bar_length=100)
@@ -43,9 +48,7 @@ def do_small_batch(reverse=False):
         os.mkdir('/tmp/knas')
     except OSError:
         pass
-    ok_lets_stop = True
     while row is not None:
-        ok_lets_stop = False
         progress_point += 1
         progress_bar.update(progress_point)
         with open("/tmp/knas/tmp.js", 'w+') as f:
@@ -108,8 +111,3 @@ def do_small_batch(reverse=False):
         pass
     cursor.close()
     db.close()
-
-
-def run():
-    while not ok_lets_stop:
-        do_small_batch()

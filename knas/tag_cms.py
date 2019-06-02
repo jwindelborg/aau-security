@@ -15,7 +15,9 @@ def search(s):
 def run():
     number_of_headers = database.count_rows('domain_has_javascripts', True)
     db, cursor = database.get_mysql_db_cursor()
-    cursor.execute("SELECT domain_id, url FROM aau.domain_has_javascripts WHERE is_external = 1")
+    cursor.execute("SELECT domain_id, url "
+                   "FROM " + database.database + ".domain_has_javascripts "
+                   "WHERE is_external = 1")
     row = cursor.fetchone()
     progress_bar = ProgressBar(number_of_headers, bar_length=100)
     progress_bar.start()

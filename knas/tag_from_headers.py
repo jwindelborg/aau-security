@@ -34,7 +34,8 @@ def run():
     progress_point = 0
 
     db, cursor = database.get_mysql_db_cursor()
-    cursor.execute("SELECT domain_id, header FROM aau.http_headers")
+    cursor.execute("SELECT domain_id, header "
+                   "FROM " + database.database + ".http_headers")
     rows = cursor.fetchall()
     cursor.close()
     db.close()

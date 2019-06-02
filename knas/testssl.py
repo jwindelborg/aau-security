@@ -96,9 +96,13 @@ def process_a_domain(domain):
     print(domain[1])
     if os.path.exists(str(os.path.dirname(__file__)) + domain[1].rstrip()):
         os.remove(str(os.path.dirname(__file__)) + domain[1].rstrip())
-    subprocess_response = subprocess.run([home + "/testssl.sh/testssl.sh", "--fast", "--warnings", "batch",
-                                          "--csv", "--csvfile",
-                                          domain[1].rstrip(), domain[1].rstrip()],
+    subprocess_response = subprocess.run([home + "/testssl.sh/testssl.sh", "--fast",
+                                          "--warnings",
+                                          "batch",
+                                          "--csv",
+                                          "--csvfile",
+                                          domain[1].rstrip(),
+                                          domain[1].rstrip()],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if subprocess_response.stderr:
         print("Skip: " + domain[1])
