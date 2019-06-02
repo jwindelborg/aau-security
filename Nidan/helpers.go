@@ -48,15 +48,15 @@ func getHttpHeaders(url string) string {
 	//  curl -I https://www.nordnet.dk/start.html:443 --> normal HTTP headers (not tested in Go)
 	//  we can handle both HTTP and HTTPS, something else breaks it
 
-	resp, err := http.Head(url)
+	response, err := http.Head(url)
 	if err != nil {
 		log.Print("Could not get http header")
 		return ""
 	}
-	defer resp.Body.Close()
+	defer response.Body.Close()
 
 	var res []string
-	for name, values := range resp.Header {
+	for name, values := range response.Header {
 		for _, value := range values {
 			res = append(res, fmt.Sprintf("%s: %s", name, value))
 		}

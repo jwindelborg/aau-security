@@ -1,48 +1,35 @@
 package main
 
 import (
-	"bufio"
+	"github.com/Thomasdezeeuw/ini"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 )
 
 func configurationParser() string{
-	path, err := filepath.Abs("../.env")
-	if err != nil {
-		log.Fatal(err)
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
+	f, err := os.Open("../.env")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	config, err := ini.Parse(f)
+	if err != nil {
+		log.Fatal()
+	}
 
 	var username string
 	var password string
-	var host string
-	var port string
+	var host     string
+	var port     string
 	var database string
 
-	for scanner.Scan() {
-		if strings.Contains(scanner.Text(), "USER") {
-			username = strings.Replace(scanner.Text(), "USER" + "=", "", -1)
-		}
-		if strings.Contains(scanner.Text(), "PASSWORD") {
-			password = strings.Replace(scanner.Text(), "PASSWORD" + "=", "", -1)
-		}
-		if strings.Contains(scanner.Text(), "HOST") {
-			host = strings.Replace(scanner.Text(), "HOST" + "=", "", -1)
-		}
-		if strings.Contains(scanner.Text(), "PORT") {
-			port = strings.Replace(scanner.Text(), "PORT" + "=", "", -1)
-		}
-		if strings.Contains(scanner.Text(), "DATABASENAME") {
-			database = strings.Replace(scanner.Text(), "DATABASENAME" + "=", "", -1)
-		}
-	}
+	username = config[ini.Global]["USER"]
+	password = config[ini.Global]["PASSWORD"]
+	host =     config[ini.Global]["HOST"]
+	port =     config[ini.Global]["PORT"]
+	database = config[ini.Global]["DATABASENAME"]
+
 	return username + ":" + password + "@tcp(" + host + ":" + port + ")/" + database
 }

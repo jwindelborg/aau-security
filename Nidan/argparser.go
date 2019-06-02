@@ -79,7 +79,7 @@ func argParse(args []string) options {
 			if len(args) > i {
 				var nr int
 				if _, err := fmt.Sscanf(args[i+1], "id:%5d", &nr); err == nil {
-					fmt.Println(i) // Outputs 123
+					fmt.Println(i)
 				}
 				options.queueSize = uint(nr)
 			}

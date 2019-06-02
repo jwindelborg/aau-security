@@ -56,34 +56,6 @@ func cookieToDB(domain Domain, cookie DomainCookie, options options) dwarf.VoidT
 	return dwarf.VoidType{}
 }
 
-func domainVisitHistory(workerName string, options options) dwarf.VoidType {
-	db, err := sql.Open("mysql", connString)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	stmt := `INSERT INTO cdp_visit_history (domain_id, worker, created_at, scan_label) SELECT domain_id, ?, NOW(), ? FROM locked_domains WHERE worker = ?;`
-	_, err = db.Exec(stmt, workerName, options.scanLabel, workerName)
-	if err != nil {
-		log.Printf("domainVisitHistory: Could not update history")
-		log.Print(err)
-	}
-	stmt2 := `DELETE FROM locked_domains WHERE worker = ?;`
-	_, err = db.Exec(stmt2, workerName)
-	if err != nil {
-		log.Printf("domainVisitHistory: Could not delete locks")
-		log.Print(err)
-	}
-
-	err = db.Close()
-	if err != nil {
-		log.Print(err)
-		log.Fatal("domainVisitHistory: Could not close DB conn")
-	}
-
-	return dwarf.VoidType{}
-}
-
 func domainVisitedHistory(options options, domain Domain) dwarf.VoidType {
 	db, err := sql.Open("mysql", connString)
 	if err != nil {

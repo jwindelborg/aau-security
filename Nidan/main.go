@@ -41,7 +41,7 @@ func main() {
 	}
 
 	for !finished {
-		domains := loadDomainQueue(options.worker, options)
+		domains := loadDomainQueue(options)
 		if len(domains) <= 0 {
 			finished = true
 			continue
@@ -51,9 +51,6 @@ func main() {
 			curDomID = domain.id
 			doDomain(domain, options.port, channel, options)
 		}
-		//if options.doScan {
-		//	domainVisitHistory(options.worker, options)
-		//}
 	}
 	log.Printf("No more domains to process!")
 	channel <- "done"
@@ -63,7 +60,7 @@ func startAndHandleChrome(channel chan string, options options) {
 
 	// xvfb-run chromium --load-extension=~/privacybadger/src/ --remote-debugging-port=9222 --disable-gpu
 	cmd := exec.Command(
-		//"xvfb-run",
+		//"xvfb-run", // X Virtual Framebuffer, used for Privacy Badger
 		options.chromeName,
 		//"--load-extension=~/privacybadger/src/",
 		"--remote-debugging-port=" + options.port,
@@ -122,8 +119,6 @@ func doDomain(domain Domain, port string, channel chan string, options options) 
 			log.Printf("Chrome not up, let's wait for a moment")
 			log.Print(err)
 			log.Fatal("Chrome dead lets stop")
-			//time.Sleep(10*time.Second)
-			//continue
 		} else if chromeUp.StatusCode != 200 {
 			channel <- "fix"
 			log.Printf("Chrome not up, let's wait for status code 200")
@@ -133,7 +128,9 @@ func doDomain(domain Domain, port string, channel chan string, options options) 
 		checkChrome = true
 	}
 
-	domainVisitedHistory(options, domain)
+	if options.doScan {
+		domainVisitedHistory(options, domain)
+	}
 
 	//region Chrome setup
 	ctx, cancel := context.WithTimeout(context.Background(), siteWorstCase)
@@ -307,7 +304,7 @@ func doDomain(domain Domain, port string, channel chan string, options options) 
 	return dwarf.VoidType{}
 }
 
-func loadDomainQueue(workerName string, options options) []Domain {
+func loadDomainQueue(options options) []Domain {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -317,9 +314,9 @@ func loadDomainQueue(workerName string, options options) []Domain {
 	}
 
 	cleanStmt := `DELETE FROM locked_domains WHERE worker = ?`
-	_, err = db.Exec(cleanStmt, workerName)
+	_, err = db.Exec(cleanStmt, options.worker)
 	if err != nil {
-		log.Printf("LoadDomainQueue: Could not delete from locked")
+		log.Printf("loadDomainQueue: Could not delete from locked")
 		log.Print(err)
 	}
 
@@ -330,7 +327,7 @@ func loadDomainQueue(workerName string, options options) []Domain {
 					FROM domains WHERE domain_id NOT IN (
 					    SELECT domain_id FROM locked_domains WHERE scan_label = ?)`
 		if options.random { lockStmt += ` ORDER BY rand() LIMIT ?;`	} else { lockStmt += ` LIMIT ?;` }
-		_, err = db.Exec(lockStmt, workerName, options.scanLabel, options.scanLabel, options.queueSize)
+		_, err = db.Exec(lockStmt, options.worker, options.scanLabel, options.scanLabel, options.queueSize)
 	} else {
 		lockStmt = `INSERT INTO locked_domains (domain_id, worker, created_at, scan_label) 
 					SELECT domains.domain_id, ? AS 'worker', NOW(), ? 
@@ -341,16 +338,16 @@ func loadDomainQueue(workerName string, options options) []Domain {
 					               AND domain_id NOT IN 
 					                   (SELECT domain_id FROM cdp_visit_history WHERE scan_label = ?)`
 		if options.random { lockStmt += ` ORDER BY rand() LIMIT ?;`	} else { lockStmt += ` LIMIT ?;` }
-		_, err = db.Exec(lockStmt, workerName, options.scanLabel, options.scanLabel, options.scanLabel, options.queueSize)
+		_, err = db.Exec(lockStmt, options.worker, options.scanLabel, options.scanLabel, options.scanLabel, options.queueSize)
 	}
 
 	if err != nil {
-		log.Printf("LoadDomainQueue: Could not lock domains")
+		log.Printf("loadDomainQueue: Could not lock domains")
 		log.Print(err)
 		log.Fatal("No domains locked lets die")
 	}
 
-	rows, err := db.QueryContext(ctx, "SELECT domain_id, domain FROM domains WHERE domain_id IN (SELECT domain_id FROM locked_domains WHERE worker = ?);", workerName)
+	rows, err := db.QueryContext(ctx, "SELECT domain_id, domain FROM domains WHERE domain_id IN (SELECT domain_id FROM locked_domains WHERE worker = ?);", options.worker)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -374,12 +371,12 @@ func loadDomainQueue(workerName string, options options) []Domain {
 	err = rows.Close()
 	if err != nil {
 		log.Print(err)
-		log.Fatal("LoadDomainQueue: Could not close rows")
+		log.Fatal("loadDomainQueue: Could not close rows")
 	}
 	err = db.Close()
 	if err != nil {
 		log.Print(err)
-		log.Fatal("LoadDomainQueue: Could not close DB conn")
+		log.Fatal("loadDomainQueue: Could not close DB conn")
 	}
 	return domains
 }
