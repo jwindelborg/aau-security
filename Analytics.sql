@@ -33,26 +33,26 @@ SELECT SUM(is_external) / COUNT(*) * 100 extPct
     FROM domain_has_javascripts;
 
 -- Which libraries have had the highest amount of vulnerabilities?
-SELECT library_name, COUNT(library_name) AS freq
+SELECT libraries.library_id, COUNT(libraries.library_id) AS freq
     FROM libraries
     JOIN library_has_vulnerabilities ON libraries.library_id = library_has_vulnerabilities.library_id
-    GROUP BY library_name
+    GROUP BY libraries.library_id
     ORDER BY freq DESC
     LIMIT 99;
 
 -- Which libraries have caused the highest amount of vulnerable websites?
-SELECT library_name, COUNT(domains.domain_id) AS freq
+SELECT libraries.library_id, COUNT(domains.domain_id) AS freq
     FROM libraries
     JOIN library_has_vulnerabilities ON libraries.library_id = library_has_vulnerabilities.library_id
     JOIN javascript_is_library ON library_has_vulnerabilities.library_id = javascript_is_library.library_id
     JOIN domain_has_javascripts ON javascript_is_library.javascript_hash = domain_has_javascripts.javascript_hash
     JOIN domains ON domain_has_javascripts.domain_id = domains.domain_id
-    GROUP BY library_name
+    GROUP BY libraries.library_id
     ORDER BY freq DESC
     LIMIT 5;
 
 -- Which library versions have the highest amount of vulnerabilities?
-SELECT libraries.library_name, libraries.library_version, COUNT(library_has_vulnerabilities.library_id) AS freq
+SELECT libraries.libname, libraries.version, COUNT(library_has_vulnerabilities.library_id) AS freq
     FROM libraries
     JOIN library_has_vulnerabilities ON libraries.library_id = library_has_vulnerabilities.library_id
     GROUP BY library_has_vulnerabilities.library_id
@@ -87,7 +87,7 @@ SELECT domain, SUM(CASE WHEN javascript_vulnerabilities.severity >= 3 THEN 1 ELS
     LIMIT 5;
 
 -- Which identified libraries do not have any vulnerabilities?
-SELECT library_name, library_version
+SELECT libname, version
     FROM libraries
     WHERE library_id NOT IN
       (SELECT library_id FROM library_has_vulnerabilities);
@@ -99,7 +99,8 @@ SELECT domain
       (SELECT domain_id FROM domain_has_javascripts)
   AND domain_id NOT IN
       (SELECT domain_id FROM cookies)
-  AND title = '';
+  AND domain_id NOT IN
+      (SELECT domain_id FROM http_headers);
 
 -- Which domains has the highest amount of red Privacy Badger actions?
 SELECT domains.domain, COUNT(privacy_badger_actions.domain_id) AS freq
