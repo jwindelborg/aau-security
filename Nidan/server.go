@@ -34,7 +34,7 @@ func runServer(options options) {
 	if err := http.ListenAndServe(":9000", nil); err != nil {
 		log.Print(err)
 		// This action is fatal since it could pollute our data
-		log.Fatal("Could not start PB server, port probably already in use")
+		log.Fatal("Could not start PB server. The port probably already in use")
 	}
 }
 

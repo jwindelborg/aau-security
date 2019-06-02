@@ -7,19 +7,19 @@ import (
 )
 
 func argParse(args []string) options {
-	var helpString = "Options for Nidan scanner:\n" +
-		"-h,--help\t\tThis\n" +
-		"-q\t\t\tQuite (suppress doing domain)\n" +
+	var helpString = "Options for Nidan:\n" +
+		"-h,--help\t\t\tThis\n" +
+		"-q\t\t\t\t\tQuiet (Suppress doing domain)\n" +
 		"--name [name]\t\tName of scan\n" +
-		"-n [500]\t\tNumber of Chrome instances\n" +
-		"-p [9222]\t\tPort default 9222\n" +
-		"-w [worker]\t\tWorker default $HOST\n" +
-		"--no-scan\t\tDon't scan\n" +
-		"--pb\t\t\tDo Privacy Badger\n" +
-		"--old\t\t\tScan already visited\n" +
-		"--random\t\tOrder queue random\n" +
+		"-n [500]\t\t\tNumber of Chrome instances\n" +
+		"-p [9222]\t\t\tCDP Port\n" +
+		"-w [worker]\t\t\tWorker name. Default: $HOST\n" +
+		"--no-scan\t\t\tVisit domains without scanning\n" +
+		"--pb\t\t\t\tDo Privacy Badger\n" +
+		"--old\t\t\t\tScan already visited\n" +
+		"--random\t\t\tOrder queue random\n" +
 		"--no-headers\t\tNo HTTP headers\n" +
-		"--cdp-name[chromium]\tName of chrome/chromium\n"
+		"--cdp-name [chrome]\tName of chrome/chromium\n"
 
 	var options options
 	options.scanLabel = "unnamed"
@@ -55,25 +55,25 @@ func argParse(args []string) options {
 			if len(args) > i {
 				options.scanLabel = args[i+1]
 			} else {
-				log.Fatal("You didn't specify a name")
+				log.Fatal("Please specify a name")
 			}
 		case "-p":
 			if len(args) > i {
 				options.port = args[i+1]
 			} else {
-				log.Fatal("You need to specify a port value")
+				log.Fatal("Please specify a port value")
 			}
 		case "-w":
 			if len(args) > i {
 				options.worker = args[i+1]
 			} else {
-				log.Fatal("You need to specify a worker name")
+				log.Fatal("Please specify a worker name")
 			}
 		case "--chromium-name":
 			if len(args) > i {
 				options.chromeName = args[i+1]
 			} else {
-				log.Fatal("You need to specify a chromium application name")
+				log.Fatal("Please specify a chromium application name")
 			}
 		case "-n":
 			if len(args) > i {

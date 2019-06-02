@@ -29,7 +29,7 @@ func javaScriptToDB(domain Domain, script JavaScript, options options) dwarf.Voi
 	err = db.Close()
 	if err != nil {
 		log.Print(err)
-		log.Fatal("javaScriptToDB: DB conn could not be closed")
+		log.Fatal("javaScriptToDB: DB connection could not be closed")
 	}
 	return dwarf.VoidType{}
 }
@@ -50,7 +50,7 @@ func cookieToDB(domain Domain, cookie DomainCookie, options options) dwarf.VoidT
 	err = db.Close()
 	if err != nil {
 		log.Print(err)
-		log.Fatal("cookieToDB: db conn could not be closed")
+		log.Fatal("cookieToDB: DB connection could not be closed")
 	}
 
 	return dwarf.VoidType{}
@@ -67,7 +67,7 @@ func domainVisitedHistory(options options, domain Domain) dwarf.VoidType {
 	if err != nil {
 		log.Printf("domainVisitedHistory: Could not update history")
 		log.Print(err)
-		log.Fatal("Could not update history, lets die")
+		log.Fatal("Could not update history. Killing instance.")
 	}
 	stmt2 := `DELETE FROM locked_domains WHERE domain_id = ?;`
 	_, err = db.Exec(stmt2, domain.id)
@@ -79,7 +79,7 @@ func domainVisitedHistory(options options, domain Domain) dwarf.VoidType {
 	err = db.Close()
 	if err != nil {
 		log.Print(err)
-		log.Fatal("domainVisitedHistory: Could not close DB conn")
+		log.Fatal("domainVisitedHistory: Could not close DB connection")
 	}
 
 	return dwarf.VoidType{}
@@ -101,7 +101,7 @@ func privacyBadgerToDB(topDomainID int, isRed int, domain string, options option
 	err = db.Close()
 	if err != nil {
 		log.Print(err)
-		log.Fatal("privacyBadgerToDB: db conn could not be closed")
+		log.Fatal("privacyBadgerToDB: DB connection could not be closed")
 	}
 
 	return dwarf.VoidType{}
@@ -123,7 +123,7 @@ func httpHeaderToDB(topDomainID int, url string, headers string, options options
 	err = db.Close()
 	if err != nil {
 		log.Print(err)
-		log.Fatal("httpHeaderToDB: db conn could not be closed")
+		log.Fatal("httpHeaderToDB: DB connection could not be closed")
 	}
 
 	return dwarf.VoidType{}

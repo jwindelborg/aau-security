@@ -116,12 +116,11 @@ func doDomain(domain Domain, port string, channel chan string, options options) 
 		chromeUp, err := http.Get("http://127.0.0.1:" + port)
 		if err != nil {
 			channel <- "fix"
-			log.Printf("Chrome not up, let's wait for a moment")
 			log.Print(err)
-			log.Fatal("Chrome dead lets stop")
+			log.Fatal("Chrome instance died. Killing instance.")
 		} else if chromeUp.StatusCode != 200 {
 			channel <- "fix"
-			log.Printf("Chrome not up, let's wait for status code 200")
+			log.Printf("Chrome is not running, Waiting for status code 200")
 			time.Sleep(10*time.Second)
 			continue
 		}
@@ -376,7 +375,7 @@ func loadDomainQueue(options options) []Domain {
 	err = db.Close()
 	if err != nil {
 		log.Print(err)
-		log.Fatal("loadDomainQueue: Could not close DB conn")
+		log.Fatal("loadDomainQueue: Could not close DB connection")
 	}
 	return domains
 }

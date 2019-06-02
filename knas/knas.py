@@ -14,7 +14,7 @@ def parser():
     p.add_argument("--wpscan", dest='wpscan', action='store_true', help='Scan for WordPress vulnerabilities')
     p.add_argument("-p", dest='make_parallel', action='store_true', default=False, help='Process in parallel')
     p.add_argument("--threads", dest='threads', action='store', default=3, required=False, type=int, metavar='[3]', help='How many threads to run')
-    p.add_argument("--scan-ssl", dest='scan_ssl', action='store_true', help='No, this is illegal')
+    p.add_argument("--scan-ssl", dest='scan_ssl', action='store_true', help='SSL-scan. ONLY RUN ON CONSENTING WEBSITES')
     p.add_argument("--ssl-threads", dest='sslthreads', action='store', required=False, type=int, default=7, metavar='[7]', help='How many SSL scan threads to run')
     p.add_argument("--ssl-locks", dest='ssllocks', action='store', required=False, type=int, default=100, metavar='[100]', help='How many domains to lock at a time')
     p.add_argument("--scan-server-header", dest='linkservervuln', action='store_true', required=False, help='Add vulnerabilities to existing server softwares')
@@ -53,11 +53,11 @@ def validate_args(pars, args):
         exit()
 
     if args.sslthreads != 7 and not args.scan_ssl:
-        exit("You should make up your mind!")
+        exit("Please run with --scan-ssl")
     if args.ssllocks != 100 and not args.scan_ssl:
-        exit("You should make up your mind!")
+        exit("Please run with --scan-ssl")
     if args.make_parallel and args.scan_ssl:
-        exit("Sorry -p and --scan-ssl is currently not supported together")
+        exit("--scan-ssl can not run with -p")
 
 
 def main():

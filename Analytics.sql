@@ -1,4 +1,4 @@
--- Hvilke domains laver flest cookies?
+-- Which third-party domains set the highest amount of cookies?
 SELECT cookie_domain,
 	COUNT(cookie_domain) AS Freq
     FROM cookies
@@ -6,33 +6,33 @@ SELECT cookie_domain,
     ORDER BY Freq DESC
     LIMIT 5;
 
--- Hvilke domains har flest cookies?
+-- Which domains has the highest amount of cookies?
 SELECT domain, COUNT(c.domain_id)
     FROM domains
     JOIN cookies c on domains.domain_id = c.domain_id
     GROUP BY c.domain_id
     ORDER BY COUNT(c.domain_id) DESC;
 
--- Hyppigst inkluderede js url
+-- Most frequently included JavaScript URL
 SELECT `url`, COUNT(`url`) AS `value_occurrence`
 FROM `domain_has_javascripts`
 GROUP BY `url`
 ORDER BY `value_occurrence` DESC
 LIMIT 100;
 
--- Hvor mange cookies er secure?
+-- Percentage of secure cookies
 SELECT SUM(is_secure) / COUNT(*) * 100 SecurePct
     FROM cookies;
 
--- Hvor mange cookies er http only?
+-- Percentage of http only cookies
 SELECT SUM(is_http_only) / COUNT(*) * 100 HttpPct
     FROM cookies;
 
--- Hvor meget javascript er external?
+-- Percentage of external JavaScript
 SELECT SUM(is_external) / COUNT(*) * 100 extPct
     FROM domain_has_javascripts;
 
--- hvilke libraries har haft flest kendte vulnerabilities?
+-- Which libraries have had the highest amount of vulnerabilities?
 SELECT library_name, COUNT(library_name) AS freq
     FROM libraries
     JOIN library_has_vulnerabilities ON libraries.library_id = library_has_vulnerabilities.library_id
@@ -40,7 +40,7 @@ SELECT library_name, COUNT(library_name) AS freq
     ORDER BY freq DESC
     LIMIT 99;
 
--- hvilke libraries er skyld i flest vulnerable sider?
+-- Which libraries have caused the highest amount of vulnerable websites?
 SELECT library_name, COUNT(domains.domain_id) AS freq
     FROM libraries
     JOIN library_has_vulnerabilities ON libraries.library_id = library_has_vulnerabilities.library_id
@@ -51,14 +51,14 @@ SELECT library_name, COUNT(domains.domain_id) AS freq
     ORDER BY freq DESC
     LIMIT 5;
 
--- Hvilke libraryversioner har flest kendte vulnerabilities?
+-- Which library versions have the highest amount of vulnerabilities?
 SELECT libraries.library_name, libraries.library_version, COUNT(library_has_vulnerabilities.library_id) AS freq
     FROM libraries
     JOIN library_has_vulnerabilities ON libraries.library_id = library_has_vulnerabilities.library_id
     GROUP BY library_has_vulnerabilities.library_id
     ORDER BY freq DESC;
 
--- Hvilke domains har flest kendte unikke vulnerabilities?
+-- Which domains has the highest amount of unique vulnerabilities?
 SELECT domain, COUNT(DISTINCT library_has_vulnerabilities.vulnerability_id) AS freq
     FROM domains
     JOIN domain_has_javascripts on domains.domain_id = domain_has_javascripts.domain_id
@@ -67,7 +67,7 @@ SELECT domain, COUNT(DISTINCT library_has_vulnerabilities.vulnerability_id) AS f
     GROUP BY domains.domain_id, domains.domain_id
     ORDER BY freq DESC;
 
--- Hvilke kendte vulnerabilities er de mest hyppige?
+-- Which vulnerabilities are the most frequent?
 SELECT vulnerability_id,
 	COUNT(vulnerability_id) AS Freq
     FROM library_has_vulnerabilities
@@ -75,7 +75,7 @@ SELECT vulnerability_id,
     ORDER BY Freq DESC
     LIMIT 5;
 
--- Hvilke sider har flest high eller værre vulnerabilities?
+-- Which domains have the highest amount of "High" and "Critical" vulnerabilities?
 SELECT domain, SUM(CASE WHEN javascript_vulnerabilities.severity >= 3 THEN 1 ELSE 0 END) AS SevFreq
     FROM domains
     JOIN domain_has_javascripts on domains.domain_id = domain_has_javascripts.domain_id
@@ -86,13 +86,13 @@ SELECT domain, SUM(CASE WHEN javascript_vulnerabilities.severity >= 3 THEN 1 ELS
     ORDER BY SevFreq DESC
     LIMIT 5;
 
--- Hvilke libraries har vi fundet som ikke har vulnerabilities?
+-- Which identified libraries do not have any vulnerabilities?
 SELECT library_name, library_version
     FROM libraries
     WHERE library_id NOT IN
       (SELECT library_id FROM library_has_vulnerabilities);
 
--- Hvor mange sider giver ingen data
+-- How many websites are either inactive or are not meant to be accessed directly?
 SELECT domain
     FROM domains
     WHERE domain_id NOT IN
@@ -101,7 +101,7 @@ SELECT domain
       (SELECT domain_id FROM cookies)
   AND title = '';
 
--- Hvilke domæner har flest røde privacy badger handlinger?
+-- Which domains has the highest amount of red Privacy Badger actions?
 SELECT domains.domain, COUNT(privacy_badger_actions.domain_id) AS freq
     FROM domains
     JOIN privacy_badger_actions on domains.domain_id = privacy_badger_actions.domain_id
@@ -109,20 +109,20 @@ SELECT domains.domain, COUNT(privacy_badger_actions.domain_id) AS freq
     GROUP BY domains.domain
     ORDER BY freq DESC;
 
--- hvilket serversoftware er mest brugt?
+-- Which server software are the most used?
 SELECT software, COUNT(software) AS freq
     FROM server_software
     GROUP BY software
     ORDER BY freq DESC;
 
--- Hvilket serversoftware er skyld i flest vulnerabilities?
+-- Which server software cause the highest amount of vulnerabilities?
 SELECT software, COUNT(server_software_has_server_vulnerabilities.software_hash) AS freq
     FROM server_software
     JOIN server_software_has_server_vulnerabilities on server_software.software_hash = server_software_has_server_vulnerabilities.software_hash
     GROUP BY software
     ORDER BY freq DESC;
 
--- Hvilket cms system er mest brugt?
+-- Which CMSs are the most used?
 SELECT cms_system, COUNT(cms_system) AS freq
     FROM identified_cms
     GROUP BY cms_system

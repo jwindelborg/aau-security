@@ -76,5 +76,5 @@ def run():
                 if x_gen_res != "-1":
                     database.insert_cms(domain_id, x_gen_res)
                 else:
-                    print("\nHey, do you know what this is?")
+                    print("\nx-generator not known. If you know this, please create an issue on GitHub")
                     print(value)
