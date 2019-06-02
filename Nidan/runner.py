@@ -13,7 +13,7 @@ def run_my_nidan(name, worker, port):
 
 
 def main():
-    if sys.argv[1] is not "":
+    if len(sys.argv) > 1:
         if str.isdigit(sys.argv[1]):
             threads = int(sys.argv[1])
         else:
