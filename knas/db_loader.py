@@ -3,9 +3,6 @@
 import database
 
 with open('zonefile') as f:
-    threads = 50
-    increment_size = 1000
-
     zone_file = f.readlines()
     db, cursor = database.get_mysql_db_cursor()
     for domain in zone_file:
