@@ -94,7 +94,7 @@ def do_part(headers_raw, index):
 def run():
     db, cursor = database.get_mysql_db_cursor()
     cursor.execute("SELECT domain_id, header "
-                   "FROM " + database.database + ".http_headers")
+                   "FROM " + database.database + ".http_headers WHERE domain_id NOT IN (SELECT domain_id FROM aau.tag_from_header_history)")
     header_rows = cursor.fetchall()
     cursor.close()
     db.close()

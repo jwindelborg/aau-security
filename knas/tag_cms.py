@@ -39,8 +39,7 @@ def run():
     number_of_headers = database.count_rows('domain_has_javascripts', True)
     db, cursor = database.get_mysql_db_cursor()
     cursor.execute("SELECT domain_id, url "
-                   "FROM " + database.database + ".domain_has_javascripts "
-                                                 "WHERE is_external = 1 AND javascript_hash NOT IN (SELECT javascript_hash FROM aau.tag_cms_history)")
+                   "FROM " + database.database + ".domain_has_javascripts WHERE is_external = 1 AND javascript_hash NOT IN (SELECT javascript_hash FROM aau.tag_cms_history)")
     rows = cursor.fetchall()
     cursor.close()
     db.close()
