@@ -263,7 +263,7 @@ def done_tag_cms(javascript_hash):
 
 
 def done_tag_from_header(domain_id):
-    stmt = "INSERT IGNORE INTO " + database + ".generic_history " \
+    stmt = "INSERT IGNORE INTO " + database + ".tag_from_header_history " \
            "(domain_id, worker, created_at) " \
            "VALUES (%s, %s, NOW())"
     params = (domain_id, worker)
