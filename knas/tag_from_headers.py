@@ -4,6 +4,10 @@ from ezprogress.progressbar import ProgressBar
 import database
 import link_server_vulnerability
 from configurations import repository
+import threading
+import time
+
+progresses = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 
 def x_power_search(s):
@@ -27,23 +31,30 @@ def key_clue_search(s):
     return "-1"
 
 
-def run():
+def count_processes():
+    global progresses
+    count = 0
+    for i in progresses:
+        count += i
+    return count
+
+
+def tell_me_progress():
     number_of_headers = database.count_rows("http_headers")
     progress_bar = ProgressBar(number_of_headers, bar_length=100)
     progress_bar.start()
-    progress_point = 0
+    while True:
+        progress_bar.update(count_processes())
+        time.sleep(0.5)
 
-    db, cursor = database.get_mysql_db_cursor()
-    cursor.execute("SELECT domain_id, header "
-                   "FROM " + database.database + ".http_headers")
-    rows = cursor.fetchall()
-    cursor.close()
-    db.close()
 
-    for row in rows:
-        progress_point += 1
-        progress_bar.update(progress_point)
-        headers = row[1].split("\n")
+def do_part(headers_raw, index):
+    global progresses
+
+    for header_row in headers_raw:
+        database.done_tag_from_header(header_row[0])
+        progresses[index] += 1
+        headers = header_row[1].split("\n")
         for header in headers:
 
             if header == "":
@@ -52,7 +63,7 @@ def run():
             key_value = header.split(":")
             key = key_value[0].lower()
             value = key_value[1].strip().lower()
-            domain_id = row[0]
+            domain_id = header_row[0]
 
             if value == "":
                 continue
@@ -78,3 +89,30 @@ def run():
                 else:
                     print("\nx-generator not known. If you know this, please create an issue on GitHub")
                     print(value)
+
+
+def run():
+    db, cursor = database.get_mysql_db_cursor()
+    cursor.execute("SELECT domain_id, header "
+                   "FROM " + database.database + ".http_headers")
+    header_rows = cursor.fetchall()
+    cursor.close()
+    db.close()
+
+    # Calculate size
+    # 642483 / 10 = ~64248
+    # 64248 * 10 = 642480
+    # 642483 - 642480 = 3
+    size = 64248
+    start_at = 0
+    end_at = 64248
+    for i in range(10):
+        threading.Thread(target=do_part, args=(header_rows[start_at:end_at], i), ).start()
+        start_at = end_at
+        end_at += size
+
+    threading.Thread(target=tell_me_progress, args=(), ).start()
+    do_part(header_rows[:-3], 0)
+
+
+run()

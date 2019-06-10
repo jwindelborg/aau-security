@@ -26,6 +26,7 @@ def run():
     while row is not None:
         progress_point += 1
         progress_bar.update(progress_point)
+        database.done_tag_cms(row[0])
 
         cms = search(row[1])
         if cms != "-1":

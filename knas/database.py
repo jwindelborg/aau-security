@@ -254,6 +254,22 @@ def insert_server_vulnerability(cve, score, description):
     do_and_done(stmt, params)
 
 
+def done_tag_cms(domain_id):
+    stmt = "INSERT IGNORE INTO " + database + ".generic_history " \
+           "(domain_id, tool, worker, created_at) " \
+           "VALUES (%s, %s, %s, NOW())"
+    params = (domain_id, "tag_cms", worker)
+    do_and_done(stmt, params)
+
+
+def done_tag_from_header(domain_id):
+    stmt = "INSERT IGNORE INTO " + database + ".generic_history " \
+           "(domain_id, tool, worker, created_at) " \
+           "VALUES (%s, %s, %s, NOW())"
+    params = (domain_id, "tag_from_headers", worker)
+    do_and_done(stmt, params)
+
+
 def insert_server_has_server_vulnerability(cve, software, version):
     software_hash = sha3.sha3_224(str(software + version).encode('utf-8')).hexdigest()
     stmt = "INSERT IGNORE INTO " + database + ".server_software_has_server_vulnerabilities " \
