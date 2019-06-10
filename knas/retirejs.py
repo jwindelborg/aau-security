@@ -47,9 +47,7 @@ def fetch_queue():
 def run():
     files = fetch_queue()
     total_amount = len(files)
-    print("First long DB stmt run")
     threading.Thread(target=tell_me_progress, args=(total_amount, ), ).start()
-    print("Start tell thread")
     start_at = 0
     end_at = 10000
     increment_size = 10000
@@ -60,7 +58,6 @@ def run():
         if threading.active_count()-1 < 10:
             list_to_process = list(files[start_at:end_at])
             threading.Thread(target=run_an_instance, args=(list_to_process, )).start()
-            print("Start thread, current count: " + str(threading.active_count()-1))
             start_at = end_at
             end_at = end_at + increment_size
             if end_at > total_amount:
@@ -79,7 +76,6 @@ def run_an_instance(scripts_to_process):
         rows = cursor.fetchall()
         cursor.close()
         db.close()
-        print("Fetched actual script")
 
         for row in rows:
             try:
