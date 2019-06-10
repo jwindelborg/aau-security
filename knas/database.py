@@ -254,19 +254,19 @@ def insert_server_vulnerability(cve, score, description):
     do_and_done(stmt, params)
 
 
-def done_tag_cms(domain_id):
-    stmt = "INSERT IGNORE INTO " + database + ".generic_history " \
-           "(domain_id, tool, worker, created_at) " \
-           "VALUES (%s, %s, %s, NOW())"
-    params = (domain_id, "tag_cms", worker)
+def done_tag_cms(javascript_hash):
+    stmt = "INSERT IGNORE INTO " + database + ".tag_cms_history " \
+           "(javascript_hash, worker, created_at) " \
+           "VALUES (%s, %s, NOW())"
+    params = (javascript_hash, worker)
     do_and_done(stmt, params)
 
 
 def done_tag_from_header(domain_id):
     stmt = "INSERT IGNORE INTO " + database + ".generic_history " \
-           "(domain_id, tool, worker, created_at) " \
-           "VALUES (%s, %s, %s, NOW())"
-    params = (domain_id, "tag_from_headers", worker)
+           "(domain_id, worker, created_at) " \
+           "VALUES (%s, %s, NOW())"
+    params = (domain_id, worker)
     do_and_done(stmt, params)
 
 
