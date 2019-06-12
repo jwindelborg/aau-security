@@ -44,8 +44,8 @@ def run():
     cursor.close()
     db.close()
 
-    threading.Thread(target=tell_me_progress(), args=number_of_headers, ).start()
+    threading.Thread(target=tell_me_progress, args=(number_of_headers,), ).start()
 
     while True:
         if threading.active_count() - 1 < 10:
-            threading.Thread(target=run_process(), args=(rows.pop()), ).start()
+            threading.Thread(target=run_process, args=(rows.pop()), ).start()

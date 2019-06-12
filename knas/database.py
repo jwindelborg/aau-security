@@ -256,7 +256,7 @@ def insert_server_vulnerability(cve, score, description):
 
 def done_tag_cms(javascript_hash):
     stmt = "INSERT IGNORE INTO " + database + ".tag_cms_history " \
-           "(javascript_hash, worker, created_at) " \
+           "(javascript_hash, worker, date_added) " \
            "VALUES (%s, %s, NOW())"
     params = (javascript_hash, worker)
     do_and_done(stmt, params)
