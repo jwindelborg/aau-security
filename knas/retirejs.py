@@ -10,6 +10,7 @@ import time
 import threading
 
 total = 0
+threads_desired = 20
 
 
 def tell_me_progress(total_amount):
@@ -36,7 +37,7 @@ def severity(severity_str):
 
 def fetch_queue():
     db, cursor = database.get_mysql_db_cursor()
-    stmt = "SELECT javascript_hash FROM aau.javascripts WHERE javascript_hash NOT IN (SELECT javascript_hash FROM aau.javascript_analyzes WHERE analytic_tool = 'retirejs')"
+    stmt = "SELECT javascript_hash FROM aau.javascripts WHERE javascript_hash NOT IN (SELECT javascript_hash FROM aau.javascript_analyzes WHERE analytic_tool = 'retirejs') ORDER BY javascript_hash DESC"
     cursor.execute(stmt)
     rows = cursor.fetchall()
     cursor.close()
@@ -45,6 +46,7 @@ def fetch_queue():
 
 
 def run():
+    global threads_desired
     files = fetch_queue()
     total_amount = len(files)
     threading.Thread(target=tell_me_progress, args=(total_amount, ), ).start()
@@ -52,10 +54,13 @@ def run():
     end_at = 10000
     increment_size = 10000
     pls_stop = False
+    list_to_process = list(files)
+    run_an_instance(list_to_process)
+    sys.exit(0)
     while not pls_stop:
         if end_at >= total_amount:
             pls_stop = True
-        if threading.active_count()-1 < 10:
+        if threading.active_count()-1 < threads_desired:
             list_to_process = list(files[start_at:end_at])
             threading.Thread(target=run_an_instance, args=(list_to_process, )).start()
             start_at = end_at
@@ -129,7 +134,9 @@ def run_an_instance(scripts_to_process):
                             database.insert_library(library_id, library, version)
                             database.insert_js_library_relation(row[0], library_id)
             except:
-                print("Could not handle " + row[0])
+                pass
+                # TODO: Dump to log file
+                # print("Could not handle " + row[0])
             try:
                 os.remove('/tmp/' + thesum + '/tmp.js')
             except OSError:

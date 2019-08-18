@@ -7,7 +7,7 @@ from configurations import repository
 import threading
 import time
 
-progresses = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+progress = 0
 
 
 def x_power_search(s):
@@ -31,29 +31,22 @@ def key_clue_search(s):
     return "-1"
 
 
-def count_processes():
-    global progresses
-    count = 0
-    for i in progresses:
-        count += i
-    return count
-
-
 def tell_me_progress():
+    global progress
     number_of_headers = database.count_rows("http_headers")
     progress_bar = ProgressBar(number_of_headers, bar_length=100)
     progress_bar.start()
     while True:
-        progress_bar.update(count_processes())
+        progress_bar.update(progress)
         time.sleep(0.5)
 
 
-def do_part(headers_raw, index):
-    global progresses
+def do_part(headers_raw):
+    global progress
 
     for header_row in headers_raw:
         database.done_tag_from_header(header_row[0])
-        progresses[index] += 1
+        progress += 1
         headers = header_row[1].split("\n")
         for header in headers:
 
@@ -107,7 +100,7 @@ def run():
     start_at = 0
     end_at = 64248
     for i in range(10):
-        threading.Thread(target=do_part, args=(header_rows[start_at:end_at], i), ).start()
+        threading.Thread(target=do_part, args=(header_rows[start_at:end_at],), ).start()
         start_at = end_at
         end_at += size
 
